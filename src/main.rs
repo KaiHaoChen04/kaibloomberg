@@ -1,6 +1,7 @@
 mod app;
 mod app_data;
 mod ui;
+mod utils;
 
 use app::App;
 use ui::run_ui;
