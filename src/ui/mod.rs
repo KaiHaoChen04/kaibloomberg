@@ -1,4 +1,5 @@
 use std::{error::Error, io, time::Duration};
+use chrono::Local;
 
 use crossterm::{
     event::{self, Event, KeyEventKind},
@@ -8,8 +9,8 @@ use crossterm::{
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
+    layout::{Alignment, Constraint, Direction, Layout},
+    style::{Color, Modifier, Style, Stylize},
     symbols,
     text::Line as TextLine,
     widgets::{
@@ -86,6 +87,14 @@ fn draw(frame: &mut Frame, app: &App) {
         ])
         .split(frame.area());
 
+    let top = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(22),
+        ])
+        .split(root[0]);
+
     let headers = app.header_tabs();
     let tab_labels: Vec<TextLine> = headers
         .iter()
@@ -104,7 +113,13 @@ fn draw(frame: &mut Frame, app: &App) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         );
-    frame.render_widget(tabs, root[0]);
+    let live_time = Local::now().format("%H:%M:%S").to_string();
+    let time_box = Paragraph::new(live_time)
+        .block(Block::default().title("")
+        .borders(Borders::ALL))
+        .alignment(Alignment::Center);
+    frame.render_widget(time_box, top[1]);
+    frame.render_widget(tabs, top[0]);
 
     let body = Layout::default()
         .direction(Direction::Horizontal)
@@ -119,7 +134,8 @@ fn draw(frame: &mut Frame, app: &App) {
             "Add ticker: {} | Enter confirm | Esc cancel",
             app.input_buffer
         )
-    } else {
+    } 
+    else {
         "q quit | ←/→ headers | a add stock | d remove stock | t source header/portfolio | l line | c candle | j/k portfolio"
             .to_string()
     };
