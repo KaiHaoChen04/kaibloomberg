@@ -1,5 +1,5 @@
 use std::{error::Error, io, time::Duration};
-use chrono::Local;
+use chrono::{Local};
 
 use crossterm::{
     event::{self, Event, KeyEventKind},
@@ -10,7 +10,7 @@ use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style, Stylize},
+    style::{Color, Modifier, Style},
     symbols,
     text::Line as TextLine,
     widgets::{
@@ -91,7 +91,7 @@ fn draw(frame: &mut Frame, app: &App) {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Min(0),
-            Constraint::Length(22),
+            Constraint::Length(15),
         ])
         .split(root[0]);
 
@@ -252,6 +252,15 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .graph_type(GraphType::Line)
         .data(&points);
 
+    let open_time = app.candles.first()
+        .map(|candle| {
+            chrono::DateTime::from_timestamp(candle.ts, 0)
+            .map(|dt| dt.with_timezone(&Local).format("%-H:%M").to_string())
+            .unwrap_or_else(|| "9:30".to_string())
+        })
+        .unwrap_or_else(|| "9:30".to_string());
+
+
     let chart = Chart::new(vec![dataset])
         .block(
             Block::default()
@@ -260,9 +269,9 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         )
         .x_axis(
             Axis::default()
-                .title("Ticks")
+                .title("Time")
                 .bounds([0.0, points.len() as f64])
-                .labels(vec![TextLine::from("0"), TextLine::from("now")]),
+                .labels(vec![TextLine::from(open_time), TextLine::from("Now")]),
         )
         .y_axis(
             Axis::default()
