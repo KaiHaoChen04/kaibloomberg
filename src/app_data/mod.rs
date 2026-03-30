@@ -1,6 +1,8 @@
 pub mod chart;
+pub mod holdings;
 
 pub use chart::{Candle, Range, fetch_candles};
+pub use holdings::Holdings;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Headers {
