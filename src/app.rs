@@ -167,7 +167,8 @@ impl App {
         if let Some(cached) = self.cache.get(&symbol) {
             self.candles = cached.clone();
             self.status = status_cached(&symbol, self.candles.len());
-        } else {
+        } 
+        else {
             self.status = status_loading(&symbol);
         }
     }
@@ -185,7 +186,8 @@ impl App {
             KeyCode::Left => {
                 if self.selected_header == 0 {
                     self.selected_header = self.header_tabs().len() - 1;
-                } else {
+                } 
+                else {
                     self.selected_header -= 1;
                 }
                 self.use_portfolio_symbol = false;

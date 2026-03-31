@@ -21,6 +21,7 @@ use ratatui::{
 use tokio::sync::mpsc;
 
 use crate::app::{App, ChartMode, FetchResult};
+mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -136,7 +137,7 @@ fn draw(frame: &mut Frame, app: &App) {
         )
     } 
     else {
-        "q quit | ←/→ headers | a add stock | d remove stock | t source header/portfolio | l line | c candle | j/k portfolio"
+        "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | h holdings"
             .to_string()
     };
     let footer =
@@ -156,7 +157,8 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let items: Vec<ListItem> = if app.portfolio.is_empty() {
         vec![ListItem::new("(empty)")]
-    } else {
+    } 
+    else {
         app.portfolio
             .iter()
             .map(|symbol| ListItem::new(symbol.clone()))
@@ -170,7 +172,8 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let title = if app.use_portfolio_symbol {
         " Portfolio [ACTIVE] "
-    } else {
+    } 
+    else {
         " Portfolio "
     };
 
