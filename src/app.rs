@@ -14,6 +14,11 @@ pub enum ChartMode {
     Candle,
 }
 
+pub enum CurrentScreen {
+    Main,
+    Portfolio,
+}
+
 pub enum FetchResult {
     Success {
         symbol: String,
@@ -41,6 +46,7 @@ pub struct App {
     pub should_quit: bool,
     pub last_refresh: Instant,
     pub refresh_interval: Duration,
+    pub current_screen: CurrentScreen,
 }
 
 impl App {
@@ -61,6 +67,7 @@ impl App {
             should_quit: false,
             last_refresh: Instant::now() - Duration::from_secs(30),
             refresh_interval: Duration::from_millis(1000),
+            current_screen: CurrentScreen::Main,
         }
     }
 
@@ -273,6 +280,18 @@ impl App {
                 self.chart_mode = ChartMode::Candle;
                 self.status = "Switched to candle view".to_string();
                 false
+            }
+            KeyCode::Tab => {
+                match self.current_screen {
+                    CurrentScreen::Main => {
+                        self.current_screen = CurrentScreen::Portfolio;
+                        false
+                    }
+                    CurrentScreen::Portfolio => {
+                        self.current_screen = CurrentScreen::Main;
+                        true
+                    }
+                }
             }
             _ => false,
         }

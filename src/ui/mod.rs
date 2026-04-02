@@ -20,7 +20,7 @@ use ratatui::{
 };
 use tokio::sync::mpsc;
 
-use crate::app::{App, ChartMode, FetchResult};
+use crate::app::{App, ChartMode, FetchResult, CurrentScreen};
 mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
