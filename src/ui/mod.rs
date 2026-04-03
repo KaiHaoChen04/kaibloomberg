@@ -20,7 +20,7 @@ use ratatui::{
 };
 use tokio::sync::mpsc;
 
-use crate::app::{App, ChartMode, FetchResult, CurrentScreen};
+use crate::{app::{App, ChartMode, CurrentScreen, FetchResult}, ui::summary::{draw_alternative_footer, draw_main_footer}};
 mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
@@ -130,19 +130,15 @@ fn draw(frame: &mut Frame, app: &App) {
     draw_left_panel(frame, app, body[0]);
     draw_chart(frame, app, body[1]);
 
-    let hint = if app.input_mode {
-        format!(
-            "Add ticker: {} | Enter confirm | Esc cancel",
-            app.input_buffer
-        )
-    } 
-    else {
-        "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | h holdings"
-            .to_string()
+    let control_box = match app.current_screen {
+        CurrentScreen::Main => {
+            draw_main_footer(app)
+        }
+        CurrentScreen::Portfolio => {
+            draw_alternative_footer()
+        }
     };
-    let footer =
-        Paragraph::new(hint).block(Block::default().title(" Controls ").borders(Borders::ALL));
-    frame.render_widget(footer, root[2]);
+    frame.render_widget(control_box, root[2]);
 }
 
 fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
