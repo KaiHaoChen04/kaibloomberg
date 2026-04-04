@@ -1,22 +1,45 @@
 use ratatui::{Frame, 
-    layout::{Layout, Constraint, Direction},
-    widgets::{Paragraph, Block, Borders}};
+    layout::{Constraint}, 
+    style::Modifier, 
+    widgets::{Block, Borders, Paragraph, Row, Table},
+    style::{Style, Color}};
 
 use crate::app::App;
 
-pub fn draw_summary_box(app: &mut App, frame: &mut Frame, area: ratatui::layout::Rect) {
+pub fn draw_summary_box(frame: &mut Frame, area: ratatui::layout::Rect) {
 
-    let root = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Min(0),
-        ])
-        .split(frame.area());
-            
+    let header_col = Row::new(vec!["Ticker", "Market $", "Avg $"])
+        .style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .bottom_margin(1);
+    
+    //Placeholder for now
+    let rows = vec![
+        Row::new(vec!["AAPL", "$189.42", "$150.00"]),
+        Row::new(vec!["TSLA", "$245.10", "$210.50"]),
+        Row::new(vec!["NVDA", "$875.00", "$600.00"]),
+    ];
+
+    let widths = [
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
+        Constraint::Percentage(34),
+    ];
+
+    let table = Table::new(rows, widths)
+        .header(header_col)
+        .block(Block::default().title(" Portfolio ").borders(Borders::ALL))
+        .column_spacing(2);
+
+    frame.render_widget(table, area);
+
 }
 pub fn draw_alternative_footer<'a>() -> Paragraph<'a> {
 
-    let footer_note = "q quit | a add ticker | d delete ticker | tab switch views";
+    let footer_note = "q quit | a add ticker | d delete ticker | tab chart";
 
     let footer =
         Paragraph::new(footer_note).block(Block::default().title(" Controls ").borders(Borders::ALL));

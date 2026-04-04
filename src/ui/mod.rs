@@ -20,7 +20,7 @@ use ratatui::{
 };
 use tokio::sync::mpsc;
 
-use crate::{app::{App, ChartMode, CurrentScreen, FetchResult}, ui::summary::{draw_alternative_footer, draw_main_footer}};
+use crate::{app::{App, ChartMode, CurrentScreen, FetchResult}, ui::summary::{draw_alternative_footer, draw_main_footer, draw_summary_box}};
 mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
@@ -127,8 +127,15 @@ fn draw(frame: &mut Frame, app: &App) {
         .constraints([Constraint::Length(30), Constraint::Min(0)])
         .split(root[1]);
 
-    draw_left_panel(frame, app, body[0]);
-    draw_chart(frame, app, body[1]);
+    match app.current_screen {
+        CurrentScreen::Main => {
+            draw_left_panel(frame, app, body[0]);
+            draw_chart(frame, app, body[1]);
+        }
+        CurrentScreen::Portfolio => {
+            draw_summary_box(frame, root[1]);
+        }
+    }
 
     let control_box = match app.current_screen {
         CurrentScreen::Main => {
