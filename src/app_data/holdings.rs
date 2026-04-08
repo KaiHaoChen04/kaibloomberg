@@ -22,6 +22,12 @@ impl Default for Stock {
 }
 
 impl Stock {
+    pub fn get_avg_price(&self) -> f64 {
+        self.average_price
+    }
+    pub fn get_quantity(&self) -> f64 {
+        self.quantity
+    }
     pub fn stock_value(&self, market_price: f64) -> (f64, f64) {
         let current_holdings = self.average_price * self.quantity;
         let current_pricing = market_price * self.quantity;
