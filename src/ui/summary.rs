@@ -4,11 +4,11 @@ use ratatui::{Frame,
     widgets::{Block, Borders, Paragraph, Row, Table},
     style::{Style, Color}};
 
-use crate::app::App;
+use crate::{app::App, app_data::{Holdings,}};
 
-pub fn draw_summary_box(frame: &mut Frame, area: ratatui::layout::Rect) {
+pub fn draw_summary_box(frame: &mut Frame, list:&Holdings , area: ratatui::layout::Rect) {
 
-    let header_col = Row::new(vec!["Ticker", "Market $", "Avg $"])
+    let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $"])
         .style(
             Style::default()
                 .fg(Color::Yellow)
@@ -16,17 +16,27 @@ pub fn draw_summary_box(frame: &mut Frame, area: ratatui::layout::Rect) {
         )
         .bottom_margin(1);
     
-    //Placeholder for now
-    let rows = vec![
-        Row::new(vec!["AAPL", "$189.42", "$150.00"]),
-        Row::new(vec!["TSLA", "$245.10", "$210.50"]),
-        Row::new(vec!["NVDA", "$875.00", "$600.00"]),
-    ];
+    let rows: Vec<Row> = if list.holding_list.is_empty() {
+        vec![Row::new(vec!["(empty)", "-", "-"])]
+    }
+    else {
+        list.holding_list
+            .iter()
+            .map(|(symbol, stock)| {
+                Row::new(vec![
+                    symbol.clone(),
+                    format!("{:.4}", stock.get_quantity()),
+                    format!("{:.4}", stock.get_avg_price()),
+                ])
+            })
+            .collect()
+    };
+            
 
     let widths = [
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
-        Constraint::Percentage(34),
+        Constraint::Percentage(10),
+        Constraint::Percentage(10),
+        Constraint::Percentage(10),
     ];
 
     let table = Table::new(rows, widths)

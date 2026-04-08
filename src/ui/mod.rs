@@ -1,5 +1,5 @@
+use chrono::Local;
 use std::{error::Error, io, time::Duration};
-use chrono::{Local};
 
 use crossterm::{
     event::{self, Event, KeyEventKind},
@@ -20,7 +20,10 @@ use ratatui::{
 };
 use tokio::sync::mpsc;
 
-use crate::{app::{App, ChartMode, CurrentScreen, FetchResult}, ui::summary::{draw_alternative_footer, draw_main_footer, draw_summary_box}};
+use crate::{
+    app::{App, ChartMode, CurrentScreen, FetchResult},
+    ui::summary::{draw_alternative_footer, draw_main_footer, draw_summary_box},
+};
 mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
@@ -90,10 +93,7 @@ fn draw(frame: &mut Frame, app: &App) {
 
     let top = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Min(0),
-            Constraint::Length(15),
-        ])
+        .constraints([Constraint::Min(0), Constraint::Length(15)])
         .split(root[0]);
 
     let headers = app.header_tabs();
@@ -116,8 +116,7 @@ fn draw(frame: &mut Frame, app: &App) {
         );
     let live_time = Local::now().format("%H:%M:%S").to_string();
     let time_box = Paragraph::new(live_time)
-        .block(Block::default().title("")
-        .borders(Borders::ALL))
+        .block(Block::default().title("").borders(Borders::ALL))
         .alignment(Alignment::Center);
     frame.render_widget(time_box, top[1]);
     frame.render_widget(tabs, top[0]);
@@ -133,17 +132,13 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_chart(frame, app, body[1]);
         }
         CurrentScreen::Portfolio => {
-            draw_summary_box(frame, root[1]);
+            draw_summary_box(frame, &app.holdings, root[1]);
         }
     }
 
     let control_box = match app.current_screen {
-        CurrentScreen::Main => {
-            draw_main_footer(app)
-        }
-        CurrentScreen::Portfolio => {
-            draw_alternative_footer()
-        }
+        CurrentScreen::Main => draw_main_footer(app),
+        CurrentScreen::Portfolio => draw_alternative_footer(),
     };
     frame.render_widget(control_box, root[2]);
 }
@@ -160,8 +155,7 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let items: Vec<ListItem> = if app.portfolio.is_empty() {
         vec![ListItem::new("(empty)")]
-    } 
-    else {
+    } else {
         app.portfolio
             .iter()
             .map(|symbol| ListItem::new(symbol.clone()))
@@ -175,8 +169,7 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let title = if app.use_portfolio_symbol {
         " Portfolio [ACTIVE] "
-    } 
-    else {
+    } else {
         " Portfolio "
     };
 
@@ -243,8 +236,7 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         (Some(first), Some(last)) => {
             if first.open > last.close {
                 Color::Red
-            } 
-            else {
+            } else {
                 Color::Green
             }
         }
@@ -258,14 +250,15 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .graph_type(GraphType::Line)
         .data(&points);
 
-    let open_time = app.candles.first()
+    let open_time = app
+        .candles
+        .first()
         .map(|candle| {
             chrono::DateTime::from_timestamp(candle.ts, 0)
-            .map(|dt| dt.with_timezone(&Local).format("%-H:%M").to_string())
-            .unwrap_or_else(|| "9:30".to_string())
+                .map(|dt| dt.with_timezone(&Local).format("%-H:%M").to_string())
+                .unwrap_or_else(|| "9:30".to_string())
         })
         .unwrap_or_else(|| "9:30".to_string());
-
 
     let chart = Chart::new(vec![dataset])
         .block(
