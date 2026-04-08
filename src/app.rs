@@ -5,7 +5,7 @@ use std::{
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app_data::{Candle, Headers, Range, fetch_candles};
+use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles};
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,6 +14,7 @@ pub enum ChartMode {
     Candle,
 }
 
+#[derive(PartialEq)]
 pub enum CurrentScreen {
     Main,
     Portfolio,
@@ -33,6 +34,7 @@ pub enum FetchResult {
 pub struct App {
     pub selected_header: usize,
     pub portfolio: Vec<String>,
+    pub holdings: Holdings,
     pub selected_portfolio: usize,
     pub use_portfolio_symbol: bool,
     pub input_mode: bool,
@@ -54,6 +56,7 @@ impl App {
         Self {
             selected_header: 0,
             portfolio: vec![],
+            holdings: Holdings::default(),
             selected_portfolio: 0,
             use_portfolio_symbol: false,
             input_mode: false,
@@ -90,7 +93,7 @@ impl App {
     }
     pub fn active_label(&self) -> String {
         if self.use_portfolio_symbol {
-            if let Some(label) = self.portfolio.get(self.selected_portfolio){
+            if let Some(label) = self.portfolio.get(self.selected_portfolio) {
                 return label.clone();
             }
         }
@@ -100,8 +103,7 @@ impl App {
     pub fn active_symbol_source(&self) -> &'static str {
         if self.use_portfolio_symbol {
             "Portfolio"
-        } 
-        else {
+        } else {
             "Header"
         }
     }
@@ -174,8 +176,7 @@ impl App {
         if let Some(cached) = self.cache.get(&symbol) {
             self.candles = cached.clone();
             self.status = status_cached(&symbol, self.candles.len());
-        } 
-        else {
+        } else {
             self.status = status_loading(&symbol);
         }
     }
@@ -193,8 +194,7 @@ impl App {
             KeyCode::Left => {
                 if self.selected_header == 0 {
                     self.selected_header = self.header_tabs().len() - 1;
-                } 
-                else {
+                } else {
                     self.selected_header -= 1;
                 }
                 self.use_portfolio_symbol = false;
@@ -208,7 +208,7 @@ impl App {
                 true
             }
             KeyCode::Char('a') => {
-                self.input_mode = true;
+                self.input_mode = self.current_screen == CurrentScreen::Main;
                 self.input_buffer.clear();
                 self.status = "Input mode: type ticker and press Enter".to_string();
                 false
@@ -217,8 +217,7 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is already empty".to_string();
                     false
-                } 
-                else {
+                } else {
                     let removed = self.portfolio.remove(self.selected_portfolio);
                     if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
                     {
@@ -249,8 +248,7 @@ impl App {
                     let previous = self.selected_portfolio;
                     if self.selected_portfolio == 0 {
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } 
-                    else {
+                    } else {
                         self.selected_portfolio -= 1;
                     }
                     if self.use_portfolio_symbol && previous != self.selected_portfolio {
@@ -264,8 +262,7 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                } 
-                else {
+                } else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
@@ -281,18 +278,16 @@ impl App {
                 self.status = "Switched to candle view".to_string();
                 false
             }
-            KeyCode::Tab => {
-                match self.current_screen {
-                    CurrentScreen::Main => {
-                        self.current_screen = CurrentScreen::Portfolio;
-                        false
-                    }
-                    CurrentScreen::Portfolio => {
-                        self.current_screen = CurrentScreen::Main;
-                        true
-                    }
+            KeyCode::Tab => match self.current_screen {
+                CurrentScreen::Main => {
+                    self.current_screen = CurrentScreen::Portfolio;
+                    false
                 }
-            }
+                CurrentScreen::Portfolio => {
+                    self.current_screen = CurrentScreen::Main;
+                    true
+                }
+            },
             _ => false,
         }
     }
@@ -316,8 +311,7 @@ impl App {
                 if !self.portfolio.iter().any(|existing| existing == &symbol) {
                     self.portfolio.push(symbol.clone());
                     self.selected_portfolio = self.portfolio.len() - 1;
-                } 
-                else if let Some(index) = self
+                } else if let Some(index) = self
                     .portfolio
                     .iter()
                     .position(|existing| existing == &symbol)
