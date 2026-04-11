@@ -1,13 +1,14 @@
-use ratatui::{Frame, 
-    layout::{Constraint}, 
-    style::Modifier, 
+use ratatui::{
+    Frame,
+    layout::Constraint,
+    style::Modifier,
+    style::{Color, Style},
     widgets::{Block, Borders, Paragraph, Row, Table},
-    style::{Style, Color}};
+};
 
-use crate::{app::App, app_data::{Holdings,}};
+use crate::{app::App, app_data::Holdings};
 
-pub fn draw_summary_box(frame: &mut Frame, list:&Holdings , area: ratatui::layout::Rect) {
-
+pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layout::Rect) {
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $"])
         .style(
             Style::default()
@@ -15,10 +16,10 @@ pub fn draw_summary_box(frame: &mut Frame, list:&Holdings , area: ratatui::layou
                 .add_modifier(Modifier::BOLD),
         )
         .bottom_margin(1);
-    
+
     let rows: Vec<Row> = if list.holding_list.is_empty() {
         vec![Row::new(vec!["(empty)", "-", "-"])]
-    }
+    } 
     else {
         list.holding_list
             .iter()
@@ -31,12 +32,11 @@ pub fn draw_summary_box(frame: &mut Frame, list:&Holdings , area: ratatui::layou
             })
             .collect()
     };
-            
 
     let widths = [
-        Constraint::Percentage(10),
-        Constraint::Percentage(10),
-        Constraint::Percentage(10),
+        Constraint::Percentage(15),
+        Constraint::Percentage(15),
+        Constraint::Percentage(15),
     ];
 
     let table = Table::new(rows, widths)
@@ -45,31 +45,16 @@ pub fn draw_summary_box(frame: &mut Frame, list:&Holdings , area: ratatui::layou
         .column_spacing(2);
 
     frame.render_widget(table, area);
-
 }
-pub fn draw_alternative_footer<'a>() -> Paragraph<'a> {
-
-    let footer_note = "q quit | a add ticker | d delete ticker | tab chart";
-
-    let footer =
-        Paragraph::new(footer_note).block(Block::default().title(" Controls ").borders(Borders::ALL));
-
-    footer
-}
-pub fn draw_main_footer<'a>(app: &App) -> Paragraph<'a> {
+pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
     let hint = if app.input_mode {
         format!(
             "Add ticker: {} | Enter confirm | Esc cancel",
             app.input_buffer
         )
-    } 
-    else {
-        "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | tab holdings"
-            .to_string()
+    } else {
+        idle_hint.to_string()
     };
-    
-    let footer =
-        Paragraph::new(hint).block(Block::default().title(" Controls ").borders(Borders::ALL));
 
-    footer
+    Paragraph::new(hint).block(Block::default().title(" Controls ").borders(Borders::ALL))
 }
