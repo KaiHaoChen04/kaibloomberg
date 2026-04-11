@@ -22,7 +22,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     app::{App, ChartMode, CurrentScreen, FetchResult},
-    ui::summary::{draw_alternative_footer, draw_main_footer, draw_summary_box},
+    ui::summary::{draw_footer, draw_summary_box},
 };
 mod summary;
 
@@ -135,10 +135,16 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_summary_box(frame, &app.holdings, root[1]);
         }
     }
-
+    
     let control_box = match app.current_screen {
-        CurrentScreen::Main => draw_main_footer(app),
-        CurrentScreen::Portfolio => draw_alternative_footer(),
+        CurrentScreen::Main => {
+            let idle_hint = "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | tab holdings";
+            draw_footer(app, idle_hint)
+        }
+        CurrentScreen::Portfolio => {
+            let idle_hint = "q quit | a add ticker | d delete ticker | tab chart";
+            draw_footer(app, idle_hint)
+        }
     };
     frame.render_widget(control_box, root[2]);
 }

@@ -5,7 +5,7 @@ use std::{
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles};
+use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles, holdings::add_to_list};
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,7 +103,8 @@ impl App {
     pub fn active_symbol_source(&self) -> &'static str {
         if self.use_portfolio_symbol {
             "Portfolio"
-        } else {
+        } 
+        else {
             "Header"
         }
     }
@@ -208,9 +209,11 @@ impl App {
                 true
             }
             KeyCode::Char('a') => {
-                self.input_mode = self.current_screen == CurrentScreen::Main;
+                self.input_mode = true;
                 self.input_buffer.clear();
-                self.status = "Input mode: type ticker and press Enter".to_string();
+                if self.current_screen == CurrentScreen::Main {
+                    self.status = "Input mode: type ticker and press Enter".to_string();
+                }
                 false
             }
             KeyCode::Char('d') => {
@@ -293,46 +296,53 @@ impl App {
     }
 
     fn handle_input_mode(&mut self, key: KeyEvent) -> bool {
-        match key.code {
-            KeyCode::Esc => {
-                self.input_mode = false;
-                self.status = "Input canceled".to_string();
-                false
-            }
-            KeyCode::Enter => {
-                let symbol = sanitize_symbol(&self.input_buffer);
-                self.input_mode = false;
+        match self.current_screen {
+            CurrentScreen::Main => {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.input_mode = false;
+                        self.status = "Input canceled".to_string();
+                        false
+                    }
+                    KeyCode::Enter => {
+                        let symbol = sanitize_symbol(&self.input_buffer);
+                        self.input_mode = false;
 
-                if symbol.is_empty() {
-                    self.status = "Ticker cannot be empty".to_string();
-                    return false;
+                        if symbol.is_empty() {
+                            self.status = "Ticker cannot be empty".to_string();
+                            return false;
+                        }
+
+                        if !self.portfolio.iter().any(|existing| existing == &symbol) {
+                            self.portfolio.push(symbol.clone());
+                            self.selected_portfolio = self.portfolio.len() - 1;
+                        } else if let Some(index) = self
+                            .portfolio
+                            .iter()
+                            .position(|existing| existing == &symbol)
+                        {
+                            self.selected_portfolio = index;
+                        }
+
+                        self.use_portfolio_symbol = true;
+                        self.input_buffer.clear();
+                        self.show_cached_or_loading();
+                        true
+                    }
+                    KeyCode::Backspace => {
+                        self.input_buffer.pop();
+                        false
+                    }
+                    KeyCode::Char(ch) => {
+                        self.input_buffer.push(ch);
+                        false
+                    }
+                    _ => false,
                 }
-
-                if !self.portfolio.iter().any(|existing| existing == &symbol) {
-                    self.portfolio.push(symbol.clone());
-                    self.selected_portfolio = self.portfolio.len() - 1;
-                } else if let Some(index) = self
-                    .portfolio
-                    .iter()
-                    .position(|existing| existing == &symbol)
-                {
-                    self.selected_portfolio = index;
-                }
-
-                self.use_portfolio_symbol = true;
-                self.input_buffer.clear();
-                self.show_cached_or_loading();
-                true
             }
-            KeyCode::Backspace => {
-                self.input_buffer.pop();
+            CurrentScreen::Portfolio => {
                 false
             }
-            KeyCode::Char(ch) => {
-                self.input_buffer.push(ch);
-                false
-            }
-            _ => false,
         }
     }
 }
