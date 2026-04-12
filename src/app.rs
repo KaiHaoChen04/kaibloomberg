@@ -39,6 +39,7 @@ pub struct App {
     pub use_portfolio_symbol: bool,
     pub input_mode: bool,
     pub input_buffer: String,
+    pub port_buffer: String,
     pub chart_mode: ChartMode,
     pub candles: Vec<Candle>,
     pub cache: HashMap<String, Vec<Candle>>,
@@ -61,6 +62,7 @@ impl App {
             use_portfolio_symbol: false,
             input_mode: false,
             input_buffer: String::new(),
+            port_buffer: String::new(),
             chart_mode: ChartMode::Line,
             candles: Vec::new(),
             cache: HashMap::new(),
@@ -341,7 +343,22 @@ impl App {
                 }
             }
             CurrentScreen::Portfolio => {
-                false
+                match key.code {
+                    KeyCode::Char(ch) => {
+                        self.port_buffer.push(ch);
+                        false
+                    }
+                    KeyCode::Backspace => {
+                        self.port_buffer.pop();
+                        false
+                    }
+                    KeyCode::Enter => {
+                        let symbol = sanitize_symbol(&self.port_buffer);
+                        self.input_mode = false;
+                        false
+                    }
+                    _ => false
+                }
             }
         }
     }

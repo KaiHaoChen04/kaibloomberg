@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Row, Table},
 };
 
-use crate::{app::App, app_data::Holdings};
+use crate::{app::{App, CurrentScreen}, app_data::Holdings};
 
 pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layout::Rect) {
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $"])
@@ -50,9 +50,17 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
     let hint = if app.input_mode {
         format!(
             "Add ticker: {} | Enter confirm | Esc cancel",
-            app.input_buffer
+            match app.current_screen {
+                CurrentScreen::Main => {
+                    &app.input_buffer
+                }
+                CurrentScreen::Portfolio => {
+                    &app.port_buffer
+                }
+            }
         )
-    } else {
+    } 
+    else {
         idle_hint.to_string()
     };
 
