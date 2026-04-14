@@ -5,7 +5,7 @@ use std::{
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles, holdings::add_to_list};
+use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles};
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,6 +18,13 @@ pub enum ChartMode {
 pub enum CurrentScreen {
     Main,
     Portfolio,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PortfolioInputStep {
+    Ticker,
+    AveragePrice,
+    Quantity,
 }
 
 pub enum FetchResult {
@@ -40,6 +47,9 @@ pub struct App {
     pub input_mode: bool,
     pub input_buffer: String,
     pub port_buffer: String,
+    portfolio_input_step: PortfolioInputStep,
+    portfolio_pending_ticker: String,
+    portfolio_pending_avg_price: Option<f64>,
     pub chart_mode: ChartMode,
     pub candles: Vec<Candle>,
     pub cache: HashMap<String, Vec<Candle>>,
@@ -63,6 +73,9 @@ impl App {
             input_mode: false,
             input_buffer: String::new(),
             port_buffer: String::new(),
+            portfolio_input_step: PortfolioInputStep::Ticker,
+            portfolio_pending_ticker: String::new(),
+            portfolio_pending_avg_price: None,
             chart_mode: ChartMode::Line,
             candles: Vec::new(),
             cache: HashMap::new(),
@@ -105,8 +118,7 @@ impl App {
     pub fn active_symbol_source(&self) -> &'static str {
         if self.use_portfolio_symbol {
             "Portfolio"
-        } 
-        else {
+        } else {
             "Header"
         }
     }
@@ -184,6 +196,21 @@ impl App {
         }
     }
 
+    fn reset_portfolio_input(&mut self) {
+        self.port_buffer.clear();
+        self.portfolio_input_step = PortfolioInputStep::Ticker;
+        self.portfolio_pending_ticker.clear();
+        self.portfolio_pending_avg_price = None;
+    }
+
+    pub fn portfolio_input_label(&self) -> &'static str {
+        match self.portfolio_input_step {
+            PortfolioInputStep::Ticker => "Ticker",
+            PortfolioInputStep::AveragePrice => "Average price",
+            PortfolioInputStep::Quantity => "Quantity",
+        }
+    }
+
     pub fn on_key(&mut self, key: KeyEvent) -> bool {
         if self.input_mode {
             return self.handle_input_mode(key);
@@ -212,9 +239,16 @@ impl App {
             }
             KeyCode::Char('a') => {
                 self.input_mode = true;
-                self.input_buffer.clear();
-                if self.current_screen == CurrentScreen::Main {
-                    self.status = "Input mode: type ticker and press Enter".to_string();
+                match self.current_screen {
+                    CurrentScreen::Main => {
+                        self.input_buffer.clear();
+                        self.status = "Input mode: type ticker and press Enter".to_string();
+                    }
+                    CurrentScreen::Portfolio => {
+                        self.reset_portfolio_input();
+                        self.status = "Input mode: type ticker, then average price, then quantity"
+                            .to_string();
+                    }
                 }
                 false
             }
@@ -299,67 +333,125 @@ impl App {
 
     fn handle_input_mode(&mut self, key: KeyEvent) -> bool {
         match self.current_screen {
-            CurrentScreen::Main => {
-                match key.code {
-                    KeyCode::Esc => {
-                        self.input_mode = false;
-                        self.status = "Input canceled".to_string();
-                        false
-                    }
-                    KeyCode::Enter => {
-                        let symbol = sanitize_symbol(&self.input_buffer);
-                        self.input_mode = false;
-
-                        if symbol.is_empty() {
-                            self.status = "Ticker cannot be empty".to_string();
-                            return false;
-                        }
-
-                        if !self.portfolio.iter().any(|existing| existing == &symbol) {
-                            self.portfolio.push(symbol.clone());
-                            self.selected_portfolio = self.portfolio.len() - 1;
-                        } else if let Some(index) = self
-                            .portfolio
-                            .iter()
-                            .position(|existing| existing == &symbol)
-                        {
-                            self.selected_portfolio = index;
-                        }
-
-                        self.use_portfolio_symbol = true;
-                        self.input_buffer.clear();
-                        self.show_cached_or_loading();
-                        true
-                    }
-                    KeyCode::Backspace => {
-                        self.input_buffer.pop();
-                        false
-                    }
-                    KeyCode::Char(ch) => {
-                        self.input_buffer.push(ch);
-                        false
-                    }
-                    _ => false,
+            CurrentScreen::Main => match key.code {
+                KeyCode::Esc => {
+                    self.input_mode = false;
+                    self.status = "Input canceled".to_string();
+                    false
                 }
-            }
-            CurrentScreen::Portfolio => {
-                match key.code {
-                    KeyCode::Char(ch) => {
-                        self.port_buffer.push(ch);
-                        false
+                KeyCode::Enter => {
+                    let symbol = sanitize_symbol(&self.input_buffer);
+                    self.input_mode = false;
+
+                    if symbol.is_empty() {
+                        self.status = "Ticker cannot be empty".to_string();
+                        return false;
                     }
-                    KeyCode::Backspace => {
-                        self.port_buffer.pop();
-                        false
+
+                    if !self.portfolio.iter().any(|existing| existing == &symbol) {
+                        self.portfolio.push(symbol.clone());
+                        self.selected_portfolio = self.portfolio.len() - 1;
+                    } else if let Some(index) = self
+                        .portfolio
+                        .iter()
+                        .position(|existing| existing == &symbol)
+                    {
+                        self.selected_portfolio = index;
                     }
-                    KeyCode::Enter => {
-                        let symbol = sanitize_symbol(&self.port_buffer);
-                        self.input_mode = false;
-                        false
-                    }
-                    _ => false
+
+                    self.use_portfolio_symbol = true;
+                    self.input_buffer.clear();
+                    self.show_cached_or_loading();
+                    true
                 }
-            }
+                KeyCode::Backspace => {
+                    self.input_buffer.pop();
+                    false
+                }
+                KeyCode::Char(ch) => {
+                    self.input_buffer.push(ch);
+                    false
+                }
+                _ => false,
+            },
+            CurrentScreen::Portfolio => match key.code {
+                KeyCode::Esc => {
+                    self.input_mode = false;
+                    self.reset_portfolio_input();
+                    self.status = "Input canceled".to_string();
+                    false
+                }
+                KeyCode::Char(ch) => {
+                    self.port_buffer.push(ch);
+                    false
+                }
+                KeyCode::Backspace => {
+                    self.port_buffer.pop();
+                    false
+                }
+                KeyCode::Enter => {
+                    let raw = self.port_buffer.trim();
+                    match self.portfolio_input_step {
+                        PortfolioInputStep::Ticker => {
+                            let symbol = sanitize_symbol(raw);
+                            if symbol.is_empty() {
+                                return false;
+                            }
+
+                            self.portfolio_pending_ticker = symbol;
+                            self.portfolio_input_step = PortfolioInputStep::AveragePrice;
+                            self.port_buffer.clear();
+                            false
+                        }
+                        PortfolioInputStep::AveragePrice => {
+                            match raw.parse::<f64>() {
+                                Ok(value) if value >= 0.0 => {
+                                    self.portfolio_pending_avg_price = Some(value);
+                                    self.portfolio_input_step = PortfolioInputStep::Quantity;
+                                    self.port_buffer.clear();
+                                }
+                                _ => {
+                                    ()
+                                }
+                            }
+                            false
+                        }
+                        PortfolioInputStep::Quantity => {
+                            let quantity = match raw.parse::<f64>() {
+                                Ok(value) if value >= 0.0 => value,
+                                _ => {
+                                    0.0
+                                }
+                            };
+
+                            let symbol = self.portfolio_pending_ticker.clone();
+                            let average_price =
+                                self.portfolio_pending_avg_price.unwrap_or_default();
+
+                            self.holdings
+                                .upsert(symbol.clone(), average_price, quantity);
+
+                            if !self.portfolio.iter().any(|existing| existing == &symbol) {
+                                self.portfolio.push(symbol.clone());
+                                self.selected_portfolio = self.portfolio.len() - 1;
+                            } 
+                            else if let Some(index) = self
+                                .portfolio
+                                .iter()
+                                .position(|existing| existing == &symbol)
+                            {
+                                self.selected_portfolio = index;
+                            }
+
+                            self.use_portfolio_symbol = true;
+                            self.input_mode = false;
+                            self.reset_portfolio_input();
+                            true
+                        }
+                    }
+                }
+                _ => false,
+            },
         }
     }
 }

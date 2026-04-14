@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use crossterm::event::{KeyCode, KeyEvent};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -41,21 +40,15 @@ impl Stock {
         (profit_loss, profit_loss_percentage)
     }
 }
-pub fn add_to_list(hold: &mut Holdings,key: KeyEvent, input_buffer: &mut String) {
-    match key.code {
-        KeyCode::Char(ch) => {
-            input_buffer.push(ch);
-        }
-        KeyCode::Backspace => {
-            input_buffer.pop();
-        }
-        KeyCode::Enter => {
-            let symbol = input_buffer.trim().to_uppercase();
-            if !symbol.is_empty() {
-                hold.holding_list.entry(symbol).or_insert(Stock::default());
-            }
-            input_buffer.clear();
-        }
-        _ => {}
+
+impl Holdings {
+    pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) {
+        self.holding_list.insert(
+            symbol,
+            Stock {
+                average_price,
+                quantity,
+            },
+        );
     }
 }
