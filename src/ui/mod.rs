@@ -135,7 +135,7 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_summary_box(frame, &app.holdings, root[1]);
         }
     }
-    
+
     let control_box = match app.current_screen {
         CurrentScreen::Main => {
             let idle_hint = "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | tab holdings";
@@ -161,7 +161,8 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let items: Vec<ListItem> = if app.portfolio.is_empty() {
         vec![ListItem::new("(empty)")]
-    } else {
+    }
+    else {
         app.portfolio
             .iter()
             .map(|symbol| ListItem::new(symbol.clone()))
@@ -175,7 +176,8 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let title = if app.use_portfolio_symbol {
         " Portfolio [ACTIVE] "
-    } else {
+    }
+    else {
         " Portfolio "
     };
 
@@ -242,7 +244,8 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         (Some(first), Some(last)) => {
             if first.open > last.close {
                 Color::Red
-            } else {
+            }
+            else {
                 Color::Green
             }
         }
@@ -342,9 +345,11 @@ fn draw_candle_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) 
                 let x = idx as f64 + 0.5;
                 let color = if candle.close > candle.open {
                     Color::Green
-                } else if candle.close < candle.open {
+                }
+                else if candle.close < candle.open {
                     Color::Red
-                } else {
+                }
+                else {
                     Color::Gray
                 };
 

@@ -156,7 +156,8 @@ pub async fn fetch_candles(symbol: &str, range: Range) -> Result<Vec<Candle>, St
             let mut candles = Vec::with_capacity(timestamps.len());
             for (i, ts) in timestamps.iter().enumerate() {
                 let close_value = close.get(i).and_then(|value| *value);
-                let Some(close_value) = close_value else {
+                let Some(close_value) = close_value
+                else {
                     continue;
                 };
 

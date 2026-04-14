@@ -22,7 +22,8 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layou
 
     let rows: Vec<Row> = if list.holding_list.is_empty() {
         vec![Row::new(vec!["(empty)", "-", "-"])]
-    } else {
+    }
+    else {
         list.holding_list
             .iter()
             .map(|(symbol, stock)| {
@@ -65,7 +66,8 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
                 )
             }
         }
-    } else {
+    }
+    else {
         idle_hint.to_string()
     };
 

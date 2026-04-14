@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Stock {
@@ -13,9 +13,9 @@ pub struct Holdings {
 }
 impl Default for Stock {
     fn default() -> Self {
-        Self { 
-            average_price: 0.0, 
-            quantity: 0.0 
+        Self {
+            average_price: 0.0,
+            quantity: 0.0,
         }
     }
 }
