@@ -1,17 +1,29 @@
 use ratatui::{
     Frame,
-    layout::Constraint,
+    layout::{Constraint, Layout, Direction, Rect},
     style::Modifier,
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph, Row, Table},
 };
+
+use tui_piechart::{PieChart, PieSlice};
 
 use crate::{
     app::{App, CurrentScreen},
     app_data::Holdings,
 };
 
-pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layout::Rect) {
+pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
+
+    let main_box = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(area);
+
+
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $"])
         .style(
             Style::default()
@@ -37,9 +49,9 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layou
     };
 
     let widths = [
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
     ];
 
     let table = Table::new(rows, widths)
@@ -47,8 +59,34 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: ratatui::layou
         .block(Block::default().title(" Portfolio ").borders(Borders::ALL))
         .column_spacing(2);
 
-    frame.render_widget(table, area);
+    let total: f64 = list.holding_list.values()
+        .map(|v| v.get_avg_price() * v.get_quantity())
+        .sum();
+
+    let slices = if list.holding_list.is_empty() {
+        vec![PieSlice::new("None", 100.0, Color::White)]
+    }
+    else {
+        list.holding_list
+            .iter()
+            .map(|(symbol, stock)| {
+                PieSlice::new(
+                    symbol.as_str(), 
+                    stock.get_avg_price() / total, 
+                    Color::Blue,
+                )
+            })
+            .collect() 
+    };
+
+    let pie_chart = PieChart::new(slices)
+        .show_legend(true)
+        .show_percentages(true);
+
+    frame.render_widget(table, main_box[0]);
+    frame.render_widget(pie_chart, main_box[1]);
 }
+
 pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
     let hint = if app.input_mode {
         match app.current_screen {
