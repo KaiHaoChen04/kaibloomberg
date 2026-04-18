@@ -13,6 +13,17 @@ use crate::{
     app_data::Holdings,
 };
 
+const COLORS: [Color; 8] = [
+    Color::Blue,
+    Color::Green,
+    Color::Red,
+    Color::Cyan,
+    Color::Magenta,
+    Color::Yellow,
+    Color::LightBlue,
+    Color::LightGreen,
+];
+
 pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
 
     let main_box = Layout::default()
@@ -69,11 +80,12 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
     else {
         list.holding_list
             .iter()
-            .map(|(symbol, stock)| {
+            .enumerate()
+            .map(|(i, (symbol, stock))| {
                 PieSlice::new(
                     symbol.as_str(), 
                     stock.get_avg_price() / total, 
-                    Color::Blue,
+                    COLORS[i % COLORS.len()],
                 )
             })
             .collect() 
