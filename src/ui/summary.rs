@@ -84,7 +84,7 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
             .map(|(i, (symbol, stock))| {
                 PieSlice::new(
                     symbol.as_str(), 
-                    stock.get_avg_price() / total, 
+                    (stock.get_avg_price() * stock.get_quantity()) / total, 
                     COLORS[i % COLORS.len()],
                 )
             })
