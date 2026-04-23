@@ -33,8 +33,7 @@ impl Stock {
         let profit_loss = current_pricing - current_holdings;
         let profit_loss_percentage = if self.average_price > 0.0 {
             (market_price / self.average_price) * 100.0
-        }
-        else {
+        } else {
             0.0
         };
         (profit_loss, profit_loss_percentage)
@@ -42,13 +41,20 @@ impl Stock {
 }
 
 impl Holdings {
-    pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) {
-        self.holding_list.insert(
-            symbol,
-            Stock {
-                average_price,
-                quantity,
-            },
-        );
+    pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) -> bool{
+
+        if self.holding_list.contains_key(&symbol) {
+            true
+        }
+        else{
+            self.holding_list.insert(
+                symbol,
+                Stock {
+                    average_price,
+                    quantity,
+                },
+            );
+            false
+        }
     }
 }

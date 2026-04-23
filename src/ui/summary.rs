@@ -108,7 +108,7 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
                     app.input_buffer
                 )
             }
-            CurrentScreen::Portfolio => {
+            CurrentScreen::Portfolio => { 
                 format!(
                     "{}: {} | Enter confirm | Esc cancel",
                     app.portfolio_input_label(),

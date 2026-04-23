@@ -118,8 +118,7 @@ impl App {
     pub fn active_symbol_source(&self) -> &'static str {
         if self.use_portfolio_symbol {
             "Portfolio"
-        }
-        else {
+        } else {
             "Header"
         }
     }
@@ -192,13 +191,12 @@ impl App {
         if let Some(cached) = self.cache.get(&symbol) {
             self.candles = cached.clone();
             self.status = status_cached(&symbol, self.candles.len());
-        }
-        else {
+        } else {
             self.status = status_loading(&symbol);
         }
     }
 
-    fn reset_portfolio_input(&mut self) {
+    pub fn reset_portfolio_input(&mut self) {
         self.port_buffer.clear();
         self.portfolio_input_step = PortfolioInputStep::Ticker;
         self.portfolio_pending_ticker.clear();
@@ -223,11 +221,29 @@ impl App {
                 self.should_quit = true;
                 true
             }
+            KeyCode::Tab => match self.current_screen {
+                CurrentScreen::Main => {
+                    self.current_screen = CurrentScreen::Portfolio;
+                    false
+                }
+                CurrentScreen::Portfolio => {
+                    self.current_screen = CurrentScreen::Main;
+                    true
+                }
+            },
+            _ => match self.current_screen {
+                CurrentScreen::Main => self.handle_main_key(key),
+                CurrentScreen::Portfolio => self.handle_portfolio_key(key),
+            },
+        }
+    }
+
+    fn handle_main_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
             KeyCode::Left => {
                 if self.selected_header == 0 {
                     self.selected_header = self.header_tabs().len() - 1;
-                }
-                else {
+                } else {
                     self.selected_header -= 1;
                 }
                 self.use_portfolio_symbol = false;
@@ -242,25 +258,48 @@ impl App {
             }
             KeyCode::Char('a') => {
                 self.input_mode = true;
-                match self.current_screen {
-                    CurrentScreen::Main => {
-                        self.input_buffer.clear();
-                        self.status = "Input mode: type ticker and press Enter".to_string();
-                    }
-                    CurrentScreen::Portfolio => {
-                        self.reset_portfolio_input();
-                        self.status = "Input mode: type ticker, then average price, then quantity"
-                            .to_string();
-                    }
+                self.input_buffer.clear();
+                self.status = "Input mode: type ticker and press Enter".to_string();
+                false
+            }
+            KeyCode::Char('t') => {
+                if self.portfolio.is_empty() {
+                    self.status = "Portfolio is empty, using header symbols".to_string();
+                    false
+                } else {
+                    self.use_portfolio_symbol = !self.use_portfolio_symbol;
+                    self.show_cached_or_loading();
+                    true
                 }
+            }
+            KeyCode::Char('l') => {
+                self.chart_mode = ChartMode::Line;
+                self.status = "Switched to line chart".to_string();
+                false
+            }
+            KeyCode::Char('c') => {
+                self.chart_mode = ChartMode::Candle;
+                self.status = "Switched to candle view".to_string();
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn handle_portfolio_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Char('a') => {
+                self.input_mode = true;
+                self.reset_portfolio_input();
+                self.status =
+                    "Input mode: type ticker, then average price, then quantity".to_string();
                 false
             }
             KeyCode::Char('d') => {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is already empty".to_string();
                     false
-                }
-                else {
+                } else {
                     let removed = self.portfolio.remove(self.selected_portfolio);
                     if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
                     {
@@ -291,8 +330,7 @@ impl App {
                     let previous = self.selected_portfolio;
                     if self.selected_portfolio == 0 {
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    }
-                    else {
+                    } else {
                         self.selected_portfolio -= 1;
                     }
                     if self.use_portfolio_symbol && previous != self.selected_portfolio {
@@ -306,33 +344,12 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                }
-                else {
+                } else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
                 }
             }
-            KeyCode::Char('l') => {
-                self.chart_mode = ChartMode::Line;
-                self.status = "Switched to line chart".to_string();
-                false
-            }
-            KeyCode::Char('c') => {
-                self.chart_mode = ChartMode::Candle;
-                self.status = "Switched to candle view".to_string();
-                false
-            }
-            KeyCode::Tab => match self.current_screen {
-                CurrentScreen::Main => {
-                    self.current_screen = CurrentScreen::Portfolio;
-                    false
-                }
-                CurrentScreen::Portfolio => {
-                    self.current_screen = CurrentScreen::Main;
-                    true
-                }
-            },
             _ => false,
         }
     }
@@ -357,8 +374,7 @@ impl App {
                     if !self.portfolio.iter().any(|existing| existing == &symbol) {
                         self.portfolio.push(symbol.clone());
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    }
-                    else if let Some(index) = self
+                    } else if let Some(index) = self
                         .portfolio
                         .iter()
                         .position(|existing| existing == &symbol)
@@ -431,25 +447,14 @@ impl App {
                             let average_price =
                                 self.portfolio_pending_avg_price.unwrap_or_default();
 
+
                             self.holdings
-                                .upsert(symbol.clone(), average_price, quantity);
+                            .upsert(symbol.clone(), average_price, quantity)
+                            .then(|| {});
 
-                            if !self.portfolio.iter().any(|existing| existing == &symbol) {
-                                self.portfolio.push(symbol.clone());
-                                self.selected_portfolio = self.portfolio.len() - 1;
-                            }
-                            else if let Some(index) = self
-                                .portfolio
-                                .iter()
-                                .position(|existing| existing == &symbol)
-                            {
-                                self.selected_portfolio = index;
-                            }
-
-                            self.use_portfolio_symbol = true;
                             self.input_mode = false;
                             self.reset_portfolio_input();
-                            true
+                            false
                         }
                     }
                 }
