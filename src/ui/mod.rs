@@ -9,12 +9,12 @@ use crossterm::{
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
     text::Line as TextLine,
     widgets::{
-        Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph, Tabs, Wrap,
+        Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState, Paragraph, Tabs, Wrap,
         canvas::{Canvas, Line as CanvasLine, Rectangle},
     },
 };
@@ -149,7 +149,7 @@ fn draw(frame: &mut Frame, app: &App) {
     frame.render_widget(control_box, root[2]);
 }
 
-fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn draw_left_panel(frame: &mut Frame, app: &App, area: Rect) {
     let left = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -169,7 +169,7 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             .collect()
     };
 
-    let mut state = ratatui::widgets::ListState::default();
+    let mut state = ListState::default();
     if !app.portfolio.is_empty() {
         state.select(Some(app.selected_portfolio));
     }
@@ -206,14 +206,14 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     frame.render_widget(status, left[2]);
 }
 
-fn draw_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
     match app.chart_mode {
         ChartMode::Line => draw_line_chart(frame, app, area),
         ChartMode::Candle => draw_candle_chart(frame, app, area),
     }
 }
 
-fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn draw_line_chart(frame: &mut Frame, app: &App, area: Rect) {
     let points = app.line_points();
     if points.is_empty() {
         let empty = Paragraph::new(format!(
@@ -295,7 +295,7 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     frame.render_widget(chart, area);
 }
 
-fn draw_candle_chart(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn draw_candle_chart(frame: &mut Frame, app: &App, area: Rect) {
     if app.candles.is_empty() {
         let empty = Paragraph::new(format!(
             "No data yet for {}\n{}",

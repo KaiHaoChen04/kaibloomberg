@@ -262,6 +262,53 @@ impl App {
                 self.status = "Input mode: type ticker and press Enter".to_string();
                 false
             }
+            KeyCode::Char('d') => {
+                if self.portfolio.is_empty() {
+                    self.status = "Portfolio is already empty".to_string();
+                    false
+                } 
+                else {
+                    let removed = self.portfolio.remove(self.selected_portfolio);
+                    if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
+                    {
+                        self.selected_portfolio = self.portfolio.len() - 1;
+                    }
+                    if self.portfolio.is_empty() {
+                        self.use_portfolio_symbol = false;
+                        self.selected_portfolio = 0;
+                    }
+                    self.show_cached_or_loading();
+                    self.status = format!("Removed {} from portfolio", removed);
+                    true
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                if !self.portfolio.is_empty() {
+                    let previous = self.selected_portfolio;
+                    if self.selected_portfolio == 0 {
+                        self.selected_portfolio = self.portfolio.len() - 1;
+                    } 
+                    else {
+                        self.selected_portfolio -= 1;
+                    }
+                    if self.use_portfolio_symbol && previous != self.selected_portfolio {
+                        self.show_cached_or_loading();
+                        return true;
+                    }
+                }
+                false
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                if !self.portfolio.is_empty() {
+                    let previous = self.selected_portfolio;
+                    self.selected_portfolio = (self.selected_portfolio + 1) % self.portfolio.len();
+                    if self.use_portfolio_symbol && previous != self.selected_portfolio {
+                        self.show_cached_or_loading();
+                        return true;
+                    }
+                }
+                false
+            }
             KeyCode::Char('t') => {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
@@ -296,55 +343,16 @@ impl App {
                 false
             }
             KeyCode::Char('d') => {
-                if self.portfolio.is_empty() {
-                    self.status = "Portfolio is already empty".to_string();
-                    false
-                } else {
-                    let removed = self.portfolio.remove(self.selected_portfolio);
-                    if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
-                    {
-                        self.selected_portfolio = self.portfolio.len() - 1;
-                    }
-                    if self.portfolio.is_empty() {
-                        self.use_portfolio_symbol = false;
-                        self.selected_portfolio = 0;
-                    }
-                    self.show_cached_or_loading();
-                    self.status = format!("Removed {} from portfolio", removed);
-                    true
-                }
-            }
-            KeyCode::Char('j') | KeyCode::Down => {
-                if !self.portfolio.is_empty() {
-                    let previous = self.selected_portfolio;
-                    self.selected_portfolio = (self.selected_portfolio + 1) % self.portfolio.len();
-                    if self.use_portfolio_symbol && previous != self.selected_portfolio {
-                        self.show_cached_or_loading();
-                        return true;
-                    }
-                }
-                false
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                if !self.portfolio.is_empty() {
-                    let previous = self.selected_portfolio;
-                    if self.selected_portfolio == 0 {
-                        self.selected_portfolio = self.portfolio.len() - 1;
-                    } else {
-                        self.selected_portfolio -= 1;
-                    }
-                    if self.use_portfolio_symbol && previous != self.selected_portfolio {
-                        self.show_cached_or_loading();
-                        return true;
-                    }
-                }
+                // need to find a way to map index to hashmap keys if possible...
+
                 false
             }
             KeyCode::Char('t') => {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                } else {
+                } 
+                else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
@@ -374,7 +382,8 @@ impl App {
                     if !self.portfolio.iter().any(|existing| existing == &symbol) {
                         self.portfolio.push(symbol.clone());
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } else if let Some(index) = self
+                    } 
+                    else if let Some(index) = self
                         .portfolio
                         .iter()
                         .position(|existing| existing == &symbol)
@@ -420,7 +429,6 @@ impl App {
                             if symbol.is_empty() {
                                 return false;
                             }
-
                             self.portfolio_pending_ticker = symbol;
                             self.portfolio_input_step = PortfolioInputStep::AveragePrice;
                             self.port_buffer.clear();
