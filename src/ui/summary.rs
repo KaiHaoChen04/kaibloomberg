@@ -9,7 +9,7 @@ use ratatui::{
 use tui_piechart::{PieChart, PieSlice};
 
 use crate::{
-    app::{App, CurrentScreen},
+    app::{self, App, CurrentScreen},
     app_data::Holdings,
 };
 
@@ -24,7 +24,7 @@ const COLORS: [Color; 8] = [
     Color::LightGreen,
 ];
 
-pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
+pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rect) {
 
     let main_box = Layout::default()
         .direction(Direction::Horizontal)
@@ -35,7 +35,7 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
         .split(area);
 
 
-    let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $"])
+    let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $", "Profit/Loss"])
         .style(
             Style::default()
                 .fg(Color::Yellow)
@@ -44,7 +44,7 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
         .bottom_margin(1);
 
     let rows: Vec<Row> = if list.holding_list.is_empty() {
-        vec![Row::new(vec!["(empty)", "-", "-"])]
+        vec![Row::new(vec!["(empty)", "-", "-", "-"])]
     }
     else {
         list.holding_list
@@ -54,15 +54,21 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, area: Rect) {
                     symbol.clone(),
                     format!("{:.2}", stock.get_quantity()),
                     format!("{:.2}", stock.get_avg_price()),
+                    app.candles
+                        .last()
+                        .map(|c| c.close)
+                        .unwrap_or(0.0)
+                        .to_string(),
                 ])
             })
             .collect()
     };
 
     let widths = [
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
+        Constraint::Percentage(25),
+        Constraint::Percentage(25),
+        Constraint::Percentage(25),
+        Constraint::Percentage(25),
     ];
 
     let table = Table::new(rows, widths)

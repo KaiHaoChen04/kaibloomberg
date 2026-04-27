@@ -132,7 +132,7 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_chart(frame, app, body[1]);
         }
         CurrentScreen::Portfolio => {
-            draw_summary_box(frame, &app.holdings, root[1]);
+            draw_summary_box(frame, &app.holdings, &app, root[1]);
         }
     }
 
