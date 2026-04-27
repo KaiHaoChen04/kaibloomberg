@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+use crate::app::App;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Stock {
     average_price: f64,
@@ -27,7 +29,14 @@ impl Stock {
     pub fn get_quantity(&self) -> f64 {
         self.quantity
     }
-    pub fn stock_value(&self, market_price: f64) -> (f64, f64) {
+    pub fn stock_value(&self, app: &App, symbol: &str) -> (f64, f64) {
+        // Determine market price by looking up the latest candle close for `symbol`.
+        let market_price = app
+            .cache
+            .get(symbol)
+            .and_then(|candles| candles.last().map(|c| c.close))
+            .unwrap_or(0.0);
+
         let current_holdings = self.average_price * self.quantity;
         let current_pricing = market_price * self.quantity;
         let profit_loss = current_pricing - current_holdings;
@@ -41,12 +50,10 @@ impl Stock {
 }
 
 impl Holdings {
-    pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) -> bool{
-
+    pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) -> bool {
         if self.holding_list.contains_key(&symbol) {
             true
-        }
-        else{
+        } else {
             self.holding_list.insert(
                 symbol,
                 Stock {

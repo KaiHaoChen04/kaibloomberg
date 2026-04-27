@@ -266,8 +266,7 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is already empty".to_string();
                     false
-                } 
-                else {
+                } else {
                     let removed = self.portfolio.remove(self.selected_portfolio);
                     if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
                     {
@@ -287,8 +286,7 @@ impl App {
                     let previous = self.selected_portfolio;
                     if self.selected_portfolio == 0 {
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } 
-                    else {
+                    } else {
                         self.selected_portfolio -= 1;
                     }
                     if self.use_portfolio_symbol && previous != self.selected_portfolio {
@@ -351,8 +349,7 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                } 
-                else {
+                } else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
@@ -382,8 +379,7 @@ impl App {
                     if !self.portfolio.iter().any(|existing| existing == &symbol) {
                         self.portfolio.push(symbol.clone());
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } 
-                    else if let Some(index) = self
+                    } else if let Some(index) = self
                         .portfolio
                         .iter()
                         .position(|existing| existing == &symbol)
@@ -455,14 +451,31 @@ impl App {
                             let average_price =
                                 self.portfolio_pending_avg_price.unwrap_or_default();
 
+                            self.holdings.upsert(symbol.clone(), average_price, quantity);
 
-                            self.holdings
-                            .upsert(symbol.clone(), average_price, quantity)
-                            .then(|| {});
+                            self.status = format!(
+                                "Saved holding: {} @ {:.2} x {:.2}",
+                                symbol, average_price, quantity
+                            );
 
+                            // Add to portfolio list to add to cache
+                            if !self.portfolio.iter().any(|existing| existing == &symbol) {
+                                self.portfolio.push(symbol.clone());
+                                self.selected_portfolio = self.portfolio.len() - 1;
+                            } 
+                            else if let Some(index) = self
+                                .portfolio
+                                .iter()
+                                .position(|existing| existing == &symbol)
+                            {
+                                self.selected_portfolio = index;
+                            }
+
+                            self.use_portfolio_symbol = true;
                             self.input_mode = false;
                             self.reset_portfolio_input();
-                            false
+
+                            true
                         }
                     }
                 }

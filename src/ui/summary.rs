@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Direction, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::Modifier,
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph, Row, Table},
@@ -9,7 +9,7 @@ use ratatui::{
 use tui_piechart::{PieChart, PieSlice};
 
 use crate::{
-    app::{self, App, CurrentScreen},
+    app::{App, CurrentScreen},
     app_data::Holdings,
 };
 
@@ -25,15 +25,10 @@ const COLORS: [Color; 8] = [
 ];
 
 pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rect) {
-
     let main_box = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
-
 
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $", "Profit/Loss"])
         .style(
@@ -45,8 +40,7 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
 
     let rows: Vec<Row> = if list.holding_list.is_empty() {
         vec![Row::new(vec!["(empty)", "-", "-", "-"])]
-    }
-    else {
+    } else {
         list.holding_list
             .iter()
             .map(|(symbol, stock)| {
@@ -54,11 +48,10 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
                     symbol.clone(),
                     format!("{:.2}", stock.get_quantity()),
                     format!("{:.2}", stock.get_avg_price()),
-                    app.candles
-                        .last()
-                        .map(|c| c.close)
-                        .unwrap_or(0.0)
-                        .to_string(),
+                    {
+                        let (pl, pct) = stock.stock_value(app, symbol.as_str());
+                        format!("{:.2} ({:.2}%)", pl, pct)
+                    },
                 ])
             })
             .collect()
@@ -76,25 +69,26 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
         .block(Block::default().title(" Portfolio ").borders(Borders::ALL))
         .column_spacing(2);
 
-    let total: f64 = list.holding_list.values()
+    let total: f64 = list
+        .holding_list
+        .values()
         .map(|v| v.get_avg_price() * v.get_quantity())
         .sum();
 
     let slices = if list.holding_list.is_empty() {
         vec![PieSlice::new("None", 100.0, Color::White)]
-    }
-    else {
+    } else {
         list.holding_list
             .iter()
             .enumerate()
             .map(|(i, (symbol, stock))| {
                 PieSlice::new(
-                    symbol.as_str(), 
-                    (stock.get_avg_price() * stock.get_quantity()) / total, 
+                    symbol.as_str(),
+                    (stock.get_avg_price() * stock.get_quantity()) / total,
                     COLORS[i % COLORS.len()],
                 )
             })
-            .collect() 
+            .collect()
     };
 
     let pie_chart = PieChart::new(slices)
@@ -114,7 +108,7 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
                     app.input_buffer
                 )
             }
-            CurrentScreen::Portfolio => { 
+            CurrentScreen::Portfolio => {
                 format!(
                     "{}: {} | Enter confirm | Esc cancel",
                     app.portfolio_input_label(),
@@ -122,8 +116,7 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
                 )
             }
         }
-    }
-    else {
+    } else {
         idle_hint.to_string()
     };
 
