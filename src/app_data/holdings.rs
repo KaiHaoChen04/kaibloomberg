@@ -37,12 +37,16 @@ impl Stock {
             .and_then(|candles| candles.last().map(|c| c.close))
             .unwrap_or(0.0);
 
+        if market_price == 0.0 {
+            return (0.0, 0.0);
+        }
+
         let current_holdings = self.average_price * self.quantity;
-        let current_pricing = market_price * self.quantity;
-        let profit_loss = current_pricing - current_holdings;
+        let profit_loss = (market_price * self.quantity) - current_holdings;
         let profit_loss_percentage = if self.average_price > 0.0 {
             (market_price / self.average_price) * 100.0
-        } else {
+        }
+        else {
             0.0
         };
         (profit_loss, profit_loss_percentage)
@@ -53,7 +57,8 @@ impl Holdings {
     pub fn upsert(&mut self, symbol: String, average_price: f64, quantity: f64) -> bool {
         if self.holding_list.contains_key(&symbol) {
             true
-        } else {
+        }
+        else {
             self.holding_list.insert(
                 symbol,
                 Stock {
