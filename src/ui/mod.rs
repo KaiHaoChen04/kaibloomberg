@@ -25,6 +25,7 @@ use crate::{
     ui::summary::{draw_footer, draw_summary_box},
 };
 mod summary;
+mod options;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
