@@ -1,3 +1,6 @@
+mod errors;
+pub use errors::YahooErrors;
+
 pub fn sanitize_symbol(symbol: &str) -> String {
     symbol
         .trim()

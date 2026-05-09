@@ -18,6 +18,7 @@ pub enum ChartMode {
 pub enum CurrentScreen {
     Main,
     Portfolio,
+    Options,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -230,10 +231,14 @@ impl App {
                     self.current_screen = CurrentScreen::Main;
                     true
                 }
+                CurrentScreen::Options => {
+                    false
+                }
             },
             _ => match self.current_screen {
                 CurrentScreen::Main => self.handle_main_key(key),
                 CurrentScreen::Portfolio => self.handle_portfolio_key(key),
+                CurrentScreen::Options => self.handle_options_key(key),
             },
         }
     }
@@ -359,6 +364,10 @@ impl App {
         }
     }
 
+    fn handle_options_key(&mut self, key: KeyEvent) -> bool {
+        true
+    }
+
     fn handle_input_mode(&mut self, key: KeyEvent) -> bool {
         match self.current_screen {
             CurrentScreen::Main => match key.code {
@@ -481,6 +490,10 @@ impl App {
                 }
                 _ => false,
             },
+            CurrentScreen::Options => match key.code {
+                    _ => 
+                    false
+            }
         }
     }
 }

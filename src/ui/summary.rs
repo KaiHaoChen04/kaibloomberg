@@ -40,7 +40,8 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
 
     let rows: Vec<Row> = if list.holding_list.is_empty() {
         vec![Row::new(vec!["(empty)", "-", "-", "-"])]
-    } else {
+    }
+    else {
         list.holding_list
             .iter()
             .map(|(symbol, stock)| {
@@ -77,7 +78,8 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
 
     let slices = if list.holding_list.is_empty() {
         vec![PieSlice::new("None", 100.0, Color::White)]
-    } else {
+    }
+    else {
         list.holding_list
             .iter()
             .enumerate()
@@ -115,8 +117,12 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
                     app.port_buffer
                 )
             }
+            CurrentScreen::Options => {
+                format!("")
+            }
         }
-    } else {
+    }
+    else {
         idle_hint.to_string()
     };
 
