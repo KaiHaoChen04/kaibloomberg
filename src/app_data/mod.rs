@@ -4,6 +4,7 @@ pub mod options;
 
 pub use chart::{Candle, Range, fetch_candles};
 pub use holdings::Holdings;
+pub use options::{OptionByDateNode, OptionsContractNode, fetch_options};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Headers {
