@@ -75,10 +75,7 @@ pub async fn fetch_options(symbol: String) -> Result<Vec<OptionByDateNode>, Yaho
             .map_err(|e| YahooErrors::Http(e))?;
 
         let status = response.status();
-        let body = response
-            .text()
-            .await
-            .map_err(|e| YahooErrors::Http(e))?;
+        let body = response.text().await.map_err(|e| YahooErrors::Http(e))?;
 
         if !status.is_success() {
             last_error = Some(match status.as_u16() {
@@ -98,7 +95,8 @@ pub async fn fetch_options(symbol: String) -> Result<Vec<OptionByDateNode>, Yaho
 
         let envelope: OptionsEnvelope = serde_json::from_str(&body).map_err(YahooErrors::Json)?;
 
-        let Some(chain) = envelope.option_chain else {
+        let Some(chain) = envelope.option_chain
+        else {
             empty_chain = true;
             continue;
         };
@@ -108,17 +106,20 @@ pub async fn fetch_options(symbol: String) -> Result<Vec<OptionByDateNode>, Yaho
             continue;
         }
 
-        let Some(result) = chain.result else {
+        let Some(result) = chain.result
+        else {
             empty_chain = true;
             continue;
         };
 
-        let Some(first) = result.into_iter().next() else {
+        let Some(first) = result.into_iter().next()
+        else {
             empty_chain = true;
             continue;
         };
 
-        let Some(options) = first.options else {
+        let Some(options) = first.options
+        else {
             empty_chain = true;
             continue;
         };
