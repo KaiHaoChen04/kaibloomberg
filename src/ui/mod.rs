@@ -14,7 +14,8 @@ use ratatui::{
     symbols,
     text::Line as TextLine,
     widgets::{
-        Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState, Paragraph, Tabs, Wrap,
+        Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState, Paragraph,
+        Tabs, Wrap,
         canvas::{Canvas, Line as CanvasLine, Rectangle},
     },
 };
@@ -22,10 +23,13 @@ use tokio::sync::mpsc;
 
 use crate::{
     app::{App, ChartMode, CurrentScreen, FetchResult},
-    ui::{options::draw_options_chart, summary::{draw_footer, draw_summary_box}},
+    ui::{
+        options::draw_options_chart,
+        summary::{draw_footer, draw_summary_box},
+    },
 };
-mod summary;
 mod options;
+mod summary;
 
 pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -56,6 +60,12 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
             }
         }
 
+        if app.options_refresh_due() {
+            if let Some(symbol) = app.schedule_options_refresh() {
+                spawn_options_refresh(symbol, result_tx.clone());
+            }
+        }
+
         if event::poll(Duration::from_millis(100))?
             && let Event::Key(key) = event::read()?
             && key.kind == KeyEventKind::Press
@@ -78,6 +88,13 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
 fn spawn_refresh(symbol: String, result_tx: mpsc::UnboundedSender<FetchResult>) {
     tokio::spawn(async move {
         let message = App::refresh_symbol(symbol).await;
+        let _ = result_tx.send(message);
+    });
+}
+
+fn spawn_options_refresh(symbol: String, result_tx: mpsc::UnboundedSender<FetchResult>) {
+    tokio::spawn(async move {
+        let message = App::refresh_options(symbol).await;
         let _ = result_tx.send(message);
     });
 }
@@ -136,21 +153,21 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_summary_box(frame, &app.holdings, &app, root[1]);
         }
         CurrentScreen::Options => {
-            draw_options_chart(frame, root[1]);
+            draw_options_chart(frame, app, root[1]);
         }
     }
 
     let control_box = match app.current_screen {
         CurrentScreen::Main => {
-            let idle_hint = "q quit | ←/→ headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | tab holdings";
+            let idle_hint = "q quit | <-/-> headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | o options | tab holdings";
             draw_footer(app, idle_hint)
         }
         CurrentScreen::Portfolio => {
-            let idle_hint = "q quit | a add ticker | d delete ticker | tab chart";
+            let idle_hint = "q quit | a add ticker | d delete ticker | o options | tab chart";
             draw_footer(app, idle_hint)
         }
         CurrentScreen::Options => {
-            let idle_hint = "q quit | tab chart";
+            let idle_hint = "q quit | tab chart | c calls | p puts | <-/-> expiry | r refresh";
             draw_footer(app, idle_hint)
         }
     };
