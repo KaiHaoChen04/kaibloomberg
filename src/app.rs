@@ -5,13 +5,21 @@ use std::{
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app_data::{Candle, Headers, Holdings, Range, fetch_candles};
+use crate::app_data::{
+    Candle, Headers, Holdings, OptionByDateNode, Range, fetch_candles, fetch_options,
+};
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChartMode {
     Line,
     Candle,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OptionsSide {
+    Calls,
+    Puts,
 }
 
 #[derive(PartialEq)]
@@ -37,6 +45,14 @@ pub enum FetchResult {
         symbol: String,
         error: String,
     },
+    OptionsSuccess {
+        symbol: String,
+        options: Vec<OptionByDateNode>,
+    },
+    OptionsError {
+        symbol: String,
+        error: String,
+    },
 }
 
 pub struct App {
@@ -54,6 +70,16 @@ pub struct App {
     pub chart_mode: ChartMode,
     pub candles: Vec<Candle>,
     pub cache: HashMap<String, Vec<Candle>>,
+    pub options: Vec<OptionByDateNode>,
+    pub options_cache: HashMap<String, Vec<OptionByDateNode>>,
+    pub options_side: OptionsSide,
+    pub options_selected_expiration: usize,
+    pub options_status: String,
+    pub options_is_loading: bool,
+    pub options_pending_symbol: Option<String>,
+    pub options_last_refresh: Instant,
+    pub options_refresh_interval: Duration,
+    pub options_force_refresh: bool,
     pub status: String,
     pub is_loading: bool,
     pub pending_symbol: Option<String>,
@@ -80,6 +106,16 @@ impl App {
             chart_mode: ChartMode::Line,
             candles: Vec::new(),
             cache: HashMap::new(),
+            options: Vec::new(),
+            options_cache: HashMap::new(),
+            options_side: OptionsSide::Calls,
+            options_selected_expiration: 0,
+            options_status: "Loading options chain...".to_string(),
+            options_is_loading: false,
+            options_pending_symbol: None,
+            options_last_refresh: Instant::now() - Duration::from_secs(60),
+            options_refresh_interval: Duration::from_secs(30),
+            options_force_refresh: false,
             status: "Loading market data...".to_string(),
             is_loading: false,
             pending_symbol: None,
@@ -119,7 +155,8 @@ impl App {
     pub fn active_symbol_source(&self) -> &'static str {
         if self.use_portfolio_symbol {
             "Portfolio"
-        } else {
+        }
+        else {
             "Header"
         }
     }
@@ -136,6 +173,12 @@ impl App {
         self.last_refresh.elapsed() >= self.refresh_interval
     }
 
+    pub fn options_refresh_due(&self) -> bool {
+        self.current_screen == CurrentScreen::Options
+            && (self.options_force_refresh
+                || self.options_last_refresh.elapsed() >= self.options_refresh_interval)
+    }
+
     pub fn schedule_refresh(&mut self) -> Option<String> {
         if self.is_loading {
             return None;
@@ -145,6 +188,19 @@ impl App {
         self.is_loading = true;
         self.pending_symbol = Some(symbol.clone());
         self.status = status_loading(&symbol);
+        Some(symbol)
+    }
+
+    pub fn schedule_options_refresh(&mut self) -> Option<String> {
+        if self.options_is_loading {
+            return None;
+        }
+
+        let symbol = self.active_symbol();
+        self.options_is_loading = true;
+        self.options_pending_symbol = Some(symbol.clone());
+        self.options_force_refresh = false;
+        self.options_status = format!("Loading options for {}...", symbol);
         Some(symbol)
     }
 
@@ -167,6 +223,51 @@ impl App {
                     self.status = status_updated(&symbol, count);
                 }
             }
+            FetchResult::OptionsSuccess { symbol, options } => {
+                let current_expiration = self.current_expiration_timestamp();
+                self.options_cache.insert(symbol.clone(), options.clone());
+                if symbol == self.active_symbol() {
+                    self.options = options;
+                }
+                if self.options_pending_symbol.as_deref() == Some(symbol.as_str()) {
+                    self.options_is_loading = false;
+                    self.options_pending_symbol = None;
+                    self.options_last_refresh = Instant::now();
+                    let count = self.options.len();
+                    if count == 0 {
+                        self.options_status = format!("No options available for {}", symbol);
+                    }
+                    else {
+                        self.options_status =
+                            format!("Options updated for {} ({} expirations)", symbol, count);
+                    }
+
+                    if let Some(expiration) = current_expiration {
+                        if let Some(index) = self
+                            .options
+                            .iter()
+                            .position(|item| item.expiration_date == Some(expiration))
+                        {
+                            self.options_selected_expiration = index;
+                        }
+                        else {
+                            self.options_selected_expiration = 0;
+                        }
+                    }
+                    else {
+                        self.options_selected_expiration = 0;
+                    }
+                }
+            }
+            FetchResult::OptionsError { symbol, error } => {
+                if self.options_pending_symbol.as_deref() == Some(symbol.as_str()) {
+                    self.options_is_loading = false;
+                    self.options_pending_symbol = None;
+                    self.options_last_refresh = Instant::now();
+                    self.options_status =
+                        format!("Failed to load options for {}: {}", symbol, error);
+                }
+            }
             FetchResult::Error { symbol, error } => {
                 if self.pending_symbol.as_deref() == Some(symbol.as_str()) {
                     self.is_loading = false;
@@ -187,14 +288,48 @@ impl App {
         }
     }
 
+    pub fn refresh_options(symbol: String) -> impl std::future::Future<Output = FetchResult> {
+        async move {
+            match fetch_options(symbol.clone()).await {
+                Ok(options) => FetchResult::OptionsSuccess { symbol, options },
+                Err(error) => FetchResult::OptionsError {
+                    symbol,
+                    error: error.to_string(),
+                },
+            }
+        }
+    }
+
     fn show_cached_or_loading(&mut self) {
         let symbol = self.active_symbol();
         if let Some(cached) = self.cache.get(&symbol) {
             self.candles = cached.clone();
             self.status = status_cached(&symbol, self.candles.len());
-        } else {
+        }
+        else {
             self.status = status_loading(&symbol);
         }
+    }
+
+    fn show_options_cached_or_loading(&mut self) {
+        let symbol = self.active_symbol();
+        if let Some(cached) = self.options_cache.get(&symbol) {
+            self.options = cached.clone();
+            self.options_status = format!(
+                "Showing cached options for {} ({} expirations)",
+                symbol,
+                self.options.len()
+            );
+        }
+        else {
+            self.options.clear();
+            self.options_status = format!("Loading options for {}...", symbol);
+        }
+        self.options_selected_expiration = 0;
+    }
+
+    pub fn request_options_refresh(&mut self) {
+        self.options_force_refresh = true;
     }
 
     pub fn reset_portfolio_input(&mut self) {
@@ -232,7 +367,8 @@ impl App {
                     true
                 }
                 CurrentScreen::Options => {
-                    false
+                    self.current_screen = CurrentScreen::Main;
+                    true
                 }
             },
             _ => match self.current_screen {
@@ -248,7 +384,8 @@ impl App {
             KeyCode::Left => {
                 if self.selected_header == 0 {
                     self.selected_header = self.header_tabs().len() - 1;
-                } else {
+                }
+                else {
                     self.selected_header -= 1;
                 }
                 self.use_portfolio_symbol = false;
@@ -267,11 +404,18 @@ impl App {
                 self.status = "Input mode: type ticker and press Enter".to_string();
                 false
             }
+            KeyCode::Char('o') => {
+                self.current_screen = CurrentScreen::Options;
+                self.show_options_cached_or_loading();
+                self.request_options_refresh();
+                false
+            }
             KeyCode::Char('d') => {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is already empty".to_string();
                     false
-                } else {
+                }
+                else {
                     let removed = self.portfolio.remove(self.selected_portfolio);
                     if self.selected_portfolio >= self.portfolio.len() && !self.portfolio.is_empty()
                     {
@@ -291,7 +435,8 @@ impl App {
                     let previous = self.selected_portfolio;
                     if self.selected_portfolio == 0 {
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } else {
+                    }
+                    else {
                         self.selected_portfolio -= 1;
                     }
                     if self.use_portfolio_symbol && previous != self.selected_portfolio {
@@ -316,7 +461,8 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                } else {
+                }
+                else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
@@ -354,18 +500,59 @@ impl App {
                 if self.portfolio.is_empty() {
                     self.status = "Portfolio is empty, using header symbols".to_string();
                     false
-                } else {
+                }
+                else {
                     self.use_portfolio_symbol = !self.use_portfolio_symbol;
                     self.show_cached_or_loading();
                     true
                 }
+            }
+            KeyCode::Char('o') => {
+                self.current_screen = CurrentScreen::Options;
+                self.show_options_cached_or_loading();
+                self.request_options_refresh();
+                false
             }
             _ => false,
         }
     }
 
     fn handle_options_key(&mut self, key: KeyEvent) -> bool {
-        true
+        match key.code {
+            KeyCode::Char('c') => {
+                self.options_side = OptionsSide::Calls;
+                self.options_status = "Showing calls".to_string();
+                false
+            }
+            KeyCode::Char('p') => {
+                self.options_side = OptionsSide::Puts;
+                self.options_status = "Showing puts".to_string();
+                false
+            }
+            KeyCode::Left => {
+                if !self.options.is_empty() {
+                    if self.options_selected_expiration == 0 {
+                        self.options_selected_expiration = self.options.len() - 1;
+                    }
+                    else {
+                        self.options_selected_expiration -= 1;
+                    }
+                }
+                false
+            }
+            KeyCode::Right => {
+                if !self.options.is_empty() {
+                    self.options_selected_expiration =
+                        (self.options_selected_expiration + 1) % self.options.len();
+                }
+                false
+            }
+            KeyCode::Char('r') => {
+                self.request_options_refresh();
+                false
+            }
+            _ => false,
+        }
     }
 
     fn handle_input_mode(&mut self, key: KeyEvent) -> bool {
@@ -388,7 +575,8 @@ impl App {
                     if !self.portfolio.iter().any(|existing| existing == &symbol) {
                         self.portfolio.push(symbol.clone());
                         self.selected_portfolio = self.portfolio.len() - 1;
-                    } else if let Some(index) = self
+                    }
+                    else if let Some(index) = self
                         .portfolio
                         .iter()
                         .position(|existing| existing == &symbol)
@@ -460,7 +648,8 @@ impl App {
                             let average_price =
                                 self.portfolio_pending_avg_price.unwrap_or_default();
 
-                            self.holdings.upsert(symbol.clone(), average_price, quantity);
+                            self.holdings
+                                .upsert(symbol.clone(), average_price, quantity);
 
                             self.status = format!(
                                 "Saved holding: {} @ {:.2} x {:.2}",
@@ -471,7 +660,7 @@ impl App {
                             if !self.portfolio.iter().any(|existing| existing == &symbol) {
                                 self.portfolio.push(symbol.clone());
                                 self.selected_portfolio = self.portfolio.len() - 1;
-                            } 
+                            }
                             else if let Some(index) = self
                                 .portfolio
                                 .iter()
@@ -491,9 +680,14 @@ impl App {
                 _ => false,
             },
             CurrentScreen::Options => match key.code {
-                    _ => 
-                    false
-            }
+                _ => false,
+            },
         }
+    }
+
+    pub fn current_expiration_timestamp(&self) -> Option<i64> {
+        self.options
+            .get(self.options_selected_expiration)
+            .and_then(|item| item.expiration_date)
     }
 }
