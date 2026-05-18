@@ -30,7 +30,6 @@ impl Stock {
         self.quantity
     }
     pub fn stock_value(&self, app: &App, symbol: &str) -> (f64, f64) {
-        // Determine market price by looking up the latest candle close for `symbol`.
         let market_price = app
             .cache
             .get(symbol)
@@ -41,15 +40,12 @@ impl Stock {
             return (0.0, 0.0);
         }
 
-        let current_holdings = self.average_price * self.quantity;
-        let profit_loss = (market_price * self.quantity) - current_holdings;
-        let profit_loss_percentage = if self.average_price > 0.0 {
-            (market_price / self.average_price) * 100.0
-        }
-        else {
-            0.0
-        };
-        (profit_loss, profit_loss_percentage)
+        let current_value = market_price * self.quantity;
+        let cost_basis = self.average_price * self.quantity;
+        let profit_loss = current_value - cost_basis;
+        let profit_loss_pct = ((market_price - self.average_price) / self.average_price) * 100.0;
+
+        (profit_loss, profit_loss_pct)
     }
 }
 
