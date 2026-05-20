@@ -1,10 +1,9 @@
-use chrono::Local;
+use chrono::{Local, Timelike, TimeZone};
+use chrono_tz::US::Eastern;
 use std::{error::Error, io, time::Duration};
 
 use crossterm::{
-    event::{self, Event, KeyEventKind},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    event::{self, Event, KeyEventKind}, execute, style::Stylize, terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode}
 };
 use ratatui::{
     Frame, Terminal,
@@ -12,7 +11,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
-    text::Line as TextLine,
+    text::{Line as TextLine, Span},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState, Paragraph,
         Tabs, Wrap,
@@ -111,7 +110,7 @@ fn draw(frame: &mut Frame, app: &App) {
 
     let top = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(0), Constraint::Length(15)])
+        .constraints([Constraint::Min(0), Constraint::Length(22)])
         .split(root[0]);
 
     let headers = app.header_tabs();
@@ -132,7 +131,12 @@ fn draw(frame: &mut Frame, app: &App) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         );
-    let live_time = Local::now().format("%H:%M:%S").to_string();
+    let live_time = if is_outside_market_hours() {
+        TextLine::from(Span::styled("MARKET CLOSED", Style::default().fg(Color::Red)))
+    }
+    else {
+        TextLine::from(Local::now().format("%H:%M:%S").to_string())
+    };
     let time_box = Paragraph::new(live_time)
         .block(Block::default().title("").borders(Borders::ALL))
         .alignment(Alignment::Center);
@@ -401,4 +405,11 @@ fn draw_candle_chart(frame: &mut Frame, app: &App, area: Rect) {
         });
 
     frame.render_widget(chart, area);
+}
+
+fn is_outside_market_hours() -> bool {
+    let now_est = Eastern.from_utc_datetime(&chrono::Utc::now().naive_utc());
+    let hour = now_est.hour();
+
+    hour < 9 || hour >= 16
 }
