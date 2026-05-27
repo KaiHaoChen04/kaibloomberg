@@ -382,6 +382,10 @@ impl App {
     fn handle_main_key(&mut self, key: KeyEvent) -> bool {
         match key.code {
             KeyCode::Left => {
+                if self.use_portfolio_symbol {
+                    self.use_portfolio_symbol = !self.use_portfolio_symbol
+                }
+
                 if self.selected_header == 0 {
                     self.selected_header = self.header_tabs().len() - 1;
                 }
@@ -393,6 +397,9 @@ impl App {
                 true
             }
             KeyCode::Right => {
+                if self.use_portfolio_symbol {
+                    self.use_portfolio_symbol = !self.use_portfolio_symbol
+                }
                 self.selected_header = (self.selected_header + 1) % self.header_tabs().len();
                 self.use_portfolio_symbol = false;
                 self.show_cached_or_loading();
@@ -431,6 +438,7 @@ impl App {
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
+                self.use_portfolio_symbol = true;
                 if !self.portfolio.is_empty() {
                     let previous = self.selected_portfolio;
                     if self.selected_portfolio == 0 {
@@ -447,6 +455,7 @@ impl App {
                 false
             }
             KeyCode::Char('j') | KeyCode::Down => {
+                self.use_portfolio_symbol = true;
                 if !self.portfolio.is_empty() {
                     let previous = self.selected_portfolio;
                     self.selected_portfolio = (self.selected_portfolio + 1) % self.portfolio.len();
