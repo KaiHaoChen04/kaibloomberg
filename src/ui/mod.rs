@@ -1,4 +1,4 @@
-use chrono::{Local, Timelike, TimeZone};
+use chrono::{Datelike, Local, TimeZone, Timelike, Weekday};
 use chrono_tz::US::Eastern;
 use std::{error::Error, io, time::Duration};
 
@@ -409,7 +409,8 @@ fn draw_candle_chart(frame: &mut Frame, app: &App, area: Rect) {
 
 fn is_outside_market_hours() -> bool {
     let now_est = Eastern.from_utc_datetime(&chrono::Utc::now().naive_utc());
+    let day = now_est.weekday();
     let hour = now_est.hour();
 
-    hour < 9 || hour >= 16
+    hour < 9 || hour >= 16 || matches!(day, Weekday::Sat | Weekday::Sun)
 }
