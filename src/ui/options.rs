@@ -10,7 +10,7 @@ use ratatui::{
 use crate::app::{App, OptionsSide};
 use crate::app_data::OptionsContractNode;
 
-pub fn draw_options_chart(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(4), Constraint::Min(0)])
@@ -55,7 +55,16 @@ pub fn draw_options_chart(frame: &mut Frame, app: &App, area: Rect) {
             OptionsSide::Puts => chain.puts.as_ref(),
         });
 
-    let rows = build_option_rows(contracts, layout[1]);
+    let max_rows = layout[1].height.saturating_sub(3) as usize;
+    app.options_page_size = max_rows.max(1);
+    let max_scroll = contracts
+        .map(|items| items.len().saturating_sub(app.options_page_size))
+        .unwrap_or(0);
+    if app.options_scroll > max_scroll {
+        app.options_scroll = max_scroll;
+    }
+
+    let rows = build_option_rows(contracts, app.options_scroll, app.options_page_size);
 
     let widths = [
         Constraint::Percentage(12); 8
@@ -69,12 +78,13 @@ pub fn draw_options_chart(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(table, layout[1]);
 }
 
-fn build_option_rows(contracts: Option<&Vec<OptionsContractNode>>, area: Rect) -> Vec<Row<'static>> {
-    let max_rows = area.height.saturating_sub(3) as usize;
+fn build_option_rows(contracts: Option<&Vec<OptionsContractNode>>, scroll: usize, page_size: usize,) -> Vec<Row<'static>> {
     let mut rows = Vec::new();
 
     if let Some(items) = contracts {
-        for contract in items.iter().take(max_rows.max(1)) {
+        let start = scroll.min(items.len());
+        let end = (start + page_size.max(1)).min(items.len());
+        for contract in items[start..end].iter() {
             rows.push(Row::new(vec![
                 format_date(contract.last_trade_date),
                 format_decimal(contract.strike),
