@@ -6,7 +6,8 @@ use std::{
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app_data::{
-    Candle, Headers, Holdings, OptionByDateNode, Range, fetch_candles, fetch_options,
+    Candle, Headers, Holdings, OptionByDateNode, OptionsContractNode, Range, fetch_candles,
+    fetch_options,
 };
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
@@ -74,6 +75,8 @@ pub struct App {
     pub options_cache: HashMap<String, Vec<OptionByDateNode>>,
     pub options_side: OptionsSide,
     pub options_selected_expiration: usize,
+    pub options_scroll: usize,
+    pub options_page_size: usize,
     pub options_status: String,
     pub options_is_loading: bool,
     pub options_pending_symbol: Option<String>,
@@ -110,6 +113,8 @@ impl App {
             options_cache: HashMap::new(),
             options_side: OptionsSide::Calls,
             options_selected_expiration: 0,
+            options_scroll: 0,
+            options_page_size: 10,
             options_status: "Loading options chain...".to_string(),
             options_is_loading: false,
             options_pending_symbol: None,
@@ -228,6 +233,7 @@ impl App {
                 self.options_cache.insert(symbol.clone(), options.clone());
                 if symbol == self.active_symbol() {
                     self.options = options;
+                    self.options_scroll = 0;
                 }
                 if self.options_pending_symbol.as_deref() == Some(symbol.as_str()) {
                     self.options_is_loading = false;
@@ -326,6 +332,7 @@ impl App {
             self.options_status = format!("Loading options for {}...", symbol);
         }
         self.options_selected_expiration = 0;
+        self.options_scroll = 0;
     }
 
     pub fn request_options_refresh(&mut self) {
@@ -531,11 +538,13 @@ impl App {
             KeyCode::Char('c') => {
                 self.options_side = OptionsSide::Calls;
                 self.options_status = "Showing calls".to_string();
+                self.options_scroll = 0;
                 false
             }
             KeyCode::Char('p') => {
                 self.options_side = OptionsSide::Puts;
                 self.options_status = "Showing puts".to_string();
+                self.options_scroll = 0;
                 false
             }
             KeyCode::Left => {
@@ -546,6 +555,7 @@ impl App {
                     else {
                         self.options_selected_expiration -= 1;
                     }
+                    self.options_scroll = 0;
                 }
                 false
             }
@@ -553,7 +563,40 @@ impl App {
                 if !self.options.is_empty() {
                     self.options_selected_expiration =
                         (self.options_selected_expiration + 1) % self.options.len();
+                    self.options_scroll = 0;
                 }
+                false
+            }
+            KeyCode::Up => {
+                if self.options_scroll > 0 {
+                    self.options_scroll -= 1;
+                }
+                false
+            }
+            KeyCode::Down => {
+                let max_scroll = self.options_scroll_max();
+                if self.options_scroll < max_scroll {
+                    self.options_scroll += 1;
+                }
+                false
+            }
+            KeyCode::PageUp => {
+                let page = self.options_page_size.max(1);
+                self.options_scroll = self.options_scroll.saturating_sub(page);
+                false
+            }
+            KeyCode::PageDown => {
+                let page = self.options_page_size.max(1);
+                let max_scroll = self.options_scroll_max();
+                self.options_scroll = (self.options_scroll + page).min(max_scroll);
+                false
+            }
+            KeyCode::Home => {
+                self.options_scroll = 0;
+                false
+            }
+            KeyCode::End => {
+                self.options_scroll = self.options_scroll_max();
                 false
             }
             KeyCode::Char('r') => {
@@ -698,5 +741,23 @@ impl App {
         self.options
             .get(self.options_selected_expiration)
             .and_then(|item| item.expiration_date)
+    }
+
+    fn current_options_contracts(&self) -> Option<&Vec<OptionsContractNode>> {
+        self.options
+            .get(self.options_selected_expiration)
+            .and_then(|chain| match self.options_side {
+                OptionsSide::Calls => chain.calls.as_ref(),
+                OptionsSide::Puts => chain.puts.as_ref(),
+            })
+    }
+
+    fn options_scroll_max(&self) -> usize {
+        let page = self.options_page_size.max(1);
+        let len = self
+            .current_options_contracts()
+            .map(|contracts| contracts.len())
+            .unwrap_or(0);
+        len.saturating_sub(page)
     }
 }
