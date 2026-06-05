@@ -98,7 +98,7 @@ fn spawn_options_refresh(symbol: String, result_tx: mpsc::UnboundedSender<FetchR
     });
 }
 
-fn draw(frame: &mut Frame, app: &App) {
+fn draw(frame: &mut Frame, app: &mut App) {
     let root = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -171,7 +171,8 @@ fn draw(frame: &mut Frame, app: &App) {
             draw_footer(app, idle_hint)
         }
         CurrentScreen::Options => {
-            let idle_hint = "q quit | tab chart | c calls | p puts | <-/-> expiry | r refresh";
+            let idle_hint =
+                "q quit | tab chart | c calls | p puts | <-/-> expiry | ^/v scroll | r refresh";
             draw_footer(app, idle_hint)
         }
     };
