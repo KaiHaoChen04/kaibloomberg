@@ -51,8 +51,8 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
         .options
         .get(app.options_selected_expiration)
         .and_then(|chain| match app.options_side {
-            OptionsSide::Calls => chain.calls.as_ref(),
-            OptionsSide::Puts => chain.puts.as_ref(),
+            OptionsSide::Calls => chain.calls.as_deref(),
+            OptionsSide::Puts => chain.puts.as_deref(),
         });
 
     let max_rows = layout[1].height.saturating_sub(3) as usize;
@@ -78,7 +78,7 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
     frame.render_widget(table, layout[1]);
 }
 
-fn build_option_rows(contracts: Option<&Vec<OptionsContractNode>>, scroll: usize, page_size: usize,) -> Vec<Row<'static>> {
+fn build_option_rows(contracts: Option<&[OptionsContractNode]>, scroll: usize, page_size: usize,) -> Vec<Row<'static>> {
     let mut rows = Vec::new();
 
     if let Some(items) = contracts {
