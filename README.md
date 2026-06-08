@@ -2,6 +2,9 @@
 
 A Rust terminal UI (TUI) for tracking market headers, portfolio holdings, and options chains in a single console app. It pulls live price data from Yahoo Finance, renders line and candlestick charts, and provides a lightweight portfolio summary with P/L breakdowns.
 
+### Demo
+![Project demo](demo/kaibloomberg_demo.gif)
+
 ## Features
 - Live price charts for S&P 500, TSX, BTC, crude oil, and CAD/USD.
 - Line and candlestick chart modes.
