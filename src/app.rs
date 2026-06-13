@@ -157,15 +157,6 @@ impl App {
         self.current_header().label().to_string()
     }
 
-    pub fn active_symbol_source(&self) -> &'static str {
-        if self.use_portfolio_symbol {
-            "Portfolio"
-        }
-        else {
-            "Header"
-        }
-    }
-
     pub fn line_points(&self) -> Vec<(f64, f64)> {
         self.candles
             .iter()

@@ -222,8 +222,8 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_stateful_widget(portfolio, left[0], &mut state);
 
     let active = Paragraph::new(format!(
-        "Source: {}\nSymbol: {}\nMode: {:?}\nPrice: {:.2}",
-        app.active_symbol_source(),
+        "Currency: {}\nSymbol: {}\nMode: {:?}\nPrice: {:.2}",
+        "-",
         app.active_label(),
         app.chart_mode,
         app.candles.last().map_or(0.0, |price| price.close)
