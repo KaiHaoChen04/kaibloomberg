@@ -163,7 +163,7 @@ fn draw(frame: &mut Frame, app: &mut App) {
 
     let control_box = match app.current_screen {
         CurrentScreen::Main => {
-            let idle_hint = "q quit | <-/-> headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | o options | tab holdings";
+            let idle_hint = "q quit | <-/-> headers | a add stock | d remove stock | t header/portfolio | l line | c candle | ^/v portfolio | o options | tab holdings | n News";
             draw_footer(app, idle_hint)
         }
         CurrentScreen::Portfolio => {
