@@ -24,6 +24,12 @@ pub struct Candle {
     pub close: f64,
 }
 
+#[derive(Clone, Debug)]
+pub struct CandleSeries {
+    pub candles: Vec<Candle>,
+    pub currency: String,
+}
+
 #[derive(Deserialize)]
 struct YahooChartResponse {
     chart: YahooChart,
@@ -41,7 +47,13 @@ struct YahooError {
 }
 
 #[derive(Deserialize)]
+struct YahooMeta {
+    currency: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct YahooResult {
+    meta: YahooMeta,
     timestamp: Option<Vec<i64>>,
     indicators: YahooIndicators,
 }
@@ -59,7 +71,7 @@ struct YahooQuote {
     close: Option<Vec<Option<f64>>>,
 }
 
-pub async fn fetch_candles(symbol: &str, range: Range) -> Result<Vec<Candle>, String> {
+pub async fn fetch_candles(symbol: &str, range: Range) -> Result<CandleSeries, String> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
         .build()
@@ -133,6 +145,8 @@ pub async fn fetch_candles(symbol: &str, range: Range) -> Result<Vec<Candle>, St
                 }
             };
 
+            let currency = result.meta.currency.unwrap_or_else(|| "-".to_string());
+
             let quote = match result.indicators.quote.into_iter().next() {
                 Some(quote) => quote,
                 None => {
@@ -177,7 +191,7 @@ pub async fn fetch_candles(symbol: &str, range: Range) -> Result<Vec<Candle>, St
             normalize_flat_opens(symbol, &mut candles);
 
             if !candles.is_empty() {
-                return Ok(candles);
+                return Ok(CandleSeries { candles, currency });
             }
 
             last_error = "No usable price rows returned".to_string();
