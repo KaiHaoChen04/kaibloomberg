@@ -3,7 +3,9 @@ use chrono_tz::US::Eastern;
 use std::{error::Error, io, time::Duration};
 
 use crossterm::{
-    event::{self, Event, KeyEventKind}, execute, style::Stylize, terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode}
+    event::{self, Event, KeyEventKind},
+    execute,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
     Frame, Terminal,
@@ -132,7 +134,10 @@ fn draw(frame: &mut Frame, app: &mut App) {
                 .add_modifier(Modifier::BOLD),
         );
     let live_time = if is_outside_market_hours() {
-        TextLine::from(Span::styled("MARKET CLOSED", Style::default().fg(Color::Red)))
+        TextLine::from(Span::styled(
+            "MARKET CLOSED",
+            Style::default().fg(Color::Red),
+        ))
     }
     else {
         TextLine::from(Local::now().format("%H:%M:%S").to_string())
@@ -223,7 +228,7 @@ fn draw_left_panel(frame: &mut Frame, app: &App, area: Rect) {
 
     let active = Paragraph::new(format!(
         "Currency: {}\nSymbol: {}\nMode: {:?}\nPrice: {:.2}",
-        "-",
+        app.currency,
         app.active_label(),
         app.chart_mode,
         app.candles.last().map_or(0.0, |price| price.close)
@@ -314,7 +319,7 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: Rect) {
         )
         .y_axis(
             Axis::default()
-                .title("Price")
+                .title("")
                 .bounds([min_y, max_y])
                 .labels([
                     TextLine::from(format!("{min_y:.2}")),
