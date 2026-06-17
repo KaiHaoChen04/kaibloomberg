@@ -6,8 +6,8 @@ use std::{
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app_data::{
-    Candle, Headers, Holdings, OptionByDateNode, OptionsContractNode, Range, fetch_candles,
-    fetch_options,
+    Candle, CandleSeries, Headers, Holdings, OptionByDateNode, OptionsContractNode, Range,
+    fetch_candles, fetch_options,
 };
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
@@ -41,6 +41,7 @@ pub enum FetchResult {
     Success {
         symbol: String,
         candles: Vec<Candle>,
+        currency: String,
     },
     Error {
         symbol: String,
@@ -70,7 +71,8 @@ pub struct App {
     portfolio_pending_avg_price: Option<f64>,
     pub chart_mode: ChartMode,
     pub candles: Vec<Candle>,
-    pub cache: HashMap<String, Vec<Candle>>,
+    pub currency: String,
+    pub cache: HashMap<String, CandleSeries>,
     pub options: Vec<OptionByDateNode>,
     pub options_cache: HashMap<String, Vec<OptionByDateNode>>,
     pub options_side: OptionsSide,
@@ -108,6 +110,7 @@ impl App {
             portfolio_pending_avg_price: None,
             chart_mode: ChartMode::Line,
             candles: Vec::new(),
+            currency: "-".to_string(),
             cache: HashMap::new(),
             options: Vec::new(),
             options_cache: HashMap::new(),
@@ -157,15 +160,6 @@ impl App {
         self.current_header().label().to_string()
     }
 
-    pub fn active_symbol_source(&self) -> &'static str {
-        if self.use_portfolio_symbol {
-            "Portfolio"
-        }
-        else {
-            "Header"
-        }
-    }
-
     pub fn line_points(&self) -> Vec<(f64, f64)> {
         self.candles
             .iter()
@@ -211,10 +205,21 @@ impl App {
 
     pub fn on_fetch_result(&mut self, message: FetchResult) {
         match message {
-            FetchResult::Success { symbol, candles } => {
-                self.cache.insert(symbol.clone(), candles.clone());
+            FetchResult::Success {
+                symbol,
+                candles,
+                currency,
+            } => {
+                self.cache.insert(
+                    symbol.clone(),
+                    CandleSeries {
+                        candles: candles.clone(),
+                        currency: currency.clone(),
+                    },
+                );
                 if symbol == self.active_symbol() {
                     self.candles = candles;
+                    self.currency = currency;
                 }
                 if self.pending_symbol.as_deref() == Some(symbol.as_str()) {
                     self.is_loading = false;
@@ -223,7 +228,7 @@ impl App {
                     let count = self
                         .cache
                         .get(&symbol)
-                        .map(|values| values.len())
+                        .map(|values| values.candles.len())
                         .unwrap_or(0);
                     self.status = status_updated(&symbol, count);
                 }
@@ -288,7 +293,11 @@ impl App {
     pub fn refresh_symbol(symbol: String) -> impl std::future::Future<Output = FetchResult> {
         async move {
             match fetch_candles(&symbol, Range::Day).await {
-                Ok(candles) => FetchResult::Success { symbol, candles },
+                Ok(series) => FetchResult::Success {
+                    symbol,
+                    candles: series.candles,
+                    currency: series.currency,
+                },
                 Err(error) => FetchResult::Error { symbol, error },
             }
         }
@@ -309,10 +318,12 @@ impl App {
     fn show_cached_or_loading(&mut self) {
         let symbol = self.active_symbol();
         if let Some(cached) = self.cache.get(&symbol) {
-            self.candles = cached.clone();
-            self.status = status_cached(&symbol, self.candles.len());
+            self.candles = cached.candles.clone();
+            self.currency = cached.currency.clone();
+            self.status = status_cached(&symbol, cached.candles.len());
         }
         else {
+            self.currency = "-".to_string();
             self.status = status_loading(&symbol);
         }
     }

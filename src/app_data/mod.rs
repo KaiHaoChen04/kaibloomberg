@@ -1,8 +1,9 @@
 pub mod chart;
 pub mod holdings;
+pub mod news;
 pub mod options;
 
-pub use chart::{Candle, Range, fetch_candles};
+pub use chart::{Candle, CandleSeries, Range, fetch_candles};
 pub use holdings::Holdings;
 pub use options::{OptionByDateNode, OptionsContractNode, fetch_options};
 
