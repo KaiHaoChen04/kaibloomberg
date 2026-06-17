@@ -33,7 +33,7 @@ impl Stock {
         let market_price = app
             .cache
             .get(symbol)
-            .and_then(|candles| candles.last().map(|c| c.close))
+            .and_then(|series| series.candles.last().map(|c| c.close))
             .unwrap_or(0.0);
 
         if market_price == 0.0 {
