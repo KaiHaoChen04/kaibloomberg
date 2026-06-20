@@ -65,4 +65,28 @@ impl Holdings {
             false
         }
     }
+    pub fn total_value(&self, app: &App) -> (f64, f64) {
+        let mut total = (0.0, 0.0);
+        let mut principle = 0.0;
+
+
+        for (symbol, stock) in &self.holding_list {
+            let market_price = app
+            .cache
+            .get(symbol)
+            .and_then(|series| series.candles.last().map(|c| c.close))
+            .unwrap_or(0.0);
+
+            principle += stock.average_price * stock.quantity;
+            total.0 += market_price * stock.quantity;
+        }
+                total.1 = if principle == 0.0 {
+                    0.0
+                }
+                else {
+                    total.0 / principle
+                };
+
+        total
+    }
 }
