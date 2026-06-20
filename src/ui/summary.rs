@@ -30,6 +30,18 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
+    let left_box = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(4), Constraint::Min(0)])
+        .split(main_box[0]);
+
+    let (total_value, value_multiple) = list.total_value(app);
+    let total_value_box = Paragraph::new(format!(
+        "Total Value: {:.2} {}\nValue / Cost Basis: {:.2}x ",
+        total_value, app.currency, value_multiple
+    ))
+    .block(Block::default().title(" Portfolio Value ").borders(Borders::ALL));
+
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $", "Profit/Loss"])
         .style(
             Style::default()
@@ -97,7 +109,8 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
         .show_legend(true)
         .show_percentages(true);
 
-    frame.render_widget(table, main_box[0]);
+    frame.render_widget(total_value_box, left_box[0]);
+    frame.render_widget(table, left_box[1]);
     frame.render_widget(pie_chart, main_box[1]);
 }
 
