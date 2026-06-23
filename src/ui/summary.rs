@@ -35,12 +35,16 @@ pub fn draw_summary_box(frame: &mut Frame, list: &Holdings, app: &App, area: Rec
         .constraints([Constraint::Length(4), Constraint::Min(0)])
         .split(main_box[0]);
 
-    let (total_value, value_multiple) = list.total_value(app);
+    let (total_value, total_return_pct) = list.total_value(app);
     let total_value_box = Paragraph::new(format!(
-        "Total Value: {:.2} {}\nValue / Cost Basis: {:.2}x ",
-        total_value, app.currency, value_multiple
+        "Total Value: {:.2} {}\nTotal Return: {:.2}% ",
+        total_value, app.currency, total_return_pct
     ))
-    .block(Block::default().title(" Portfolio Value ").borders(Borders::ALL));
+    .block(
+        Block::default()
+            .title(" Portfolio Value ")
+            .borders(Borders::ALL),
+    );
 
     let header_col = Row::new(vec!["Ticker", "Quantity", "Avg $", "Profit/Loss"])
         .style(

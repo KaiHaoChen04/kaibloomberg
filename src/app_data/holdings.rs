@@ -43,7 +43,12 @@ impl Stock {
         let current_value = market_price * self.quantity;
         let cost_basis = self.average_price * self.quantity;
         let profit_loss = current_value - cost_basis;
-        let profit_loss_pct = ((market_price - self.average_price) / self.average_price) * 100.0;
+        let profit_loss_pct = if self.average_price == 0.0 {
+            0.0
+        }
+        else {
+            ((market_price - self.average_price) / self.average_price) * 100.0
+        };
 
         (profit_loss, profit_loss_pct)
     }
@@ -69,23 +74,23 @@ impl Holdings {
         let mut total = (0.0, 0.0);
         let mut principle = 0.0;
 
-
         for (symbol, stock) in &self.holding_list {
             let market_price = app
-            .cache
-            .get(symbol)
-            .and_then(|series| series.candles.last().map(|c| c.close))
-            .unwrap_or(0.0);
+                .cache
+                .get(symbol)
+                .and_then(|series| series.candles.last().map(|c| c.close))
+                .unwrap_or(0.0);
 
             principle += stock.average_price * stock.quantity;
             total.0 += market_price * stock.quantity;
         }
-                total.1 = if principle == 0.0 {
-                    0.0
-                }
-                else {
-                    total.0 / principle
-                };
+
+        total.1 = if principle == 0.0 {
+            0.0
+        }
+        else {
+            ((total.0 - principle) / principle) * 100.0
+        };
 
         total
     }
