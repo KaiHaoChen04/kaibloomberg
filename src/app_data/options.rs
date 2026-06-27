@@ -23,14 +23,9 @@ pub struct OptionChainNode {
 #[serde(rename_all = "camelCase")]
 pub struct OptionResultNode {
     expiration_dates: Option<Vec<i64>>,
-    quote: Option<OptionQuoteNode>,
     options: Option<Vec<OptionByDateNode>>,
 }
 
-#[derive(Deserialize)]
-pub struct OptionQuoteNode {
-    currency: Option<String>,
-}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
