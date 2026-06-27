@@ -27,3 +27,6 @@ target
 
 #macos 
 .DS_Store
+
+# Claude local overrides (contains machine-specific settings/secrets)
+.claude/settings.local.json
