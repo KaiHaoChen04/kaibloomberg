@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
@@ -87,7 +87,7 @@ pub struct App {
     pub options_force_refresh: bool,
     pub status: String,
     pub is_loading: bool,
-    pub pending_symbol: Option<String>,
+    pub pending_symbols: HashSet<String>,
     pub should_quit: bool,
     pub last_refresh: Instant,
     pub refresh_interval: Duration,
@@ -126,7 +126,7 @@ impl App {
             options_force_refresh: false,
             status: "Loading market data...".to_string(),
             is_loading: false,
-            pending_symbol: None,
+            pending_symbols: HashSet::new(),
             should_quit: false,
             last_refresh: Instant::now() - Duration::from_secs(30),
             refresh_interval: Duration::from_millis(1000),
@@ -178,16 +178,24 @@ impl App {
                 || self.options_last_refresh.elapsed() >= self.options_refresh_interval)
     }
 
-    pub fn schedule_refresh(&mut self) -> Option<String> {
+    pub fn schedule_refresh(&mut self) -> Vec<String> {
         if self.is_loading {
-            return None;
+            return Vec::new();
         }
 
-        let symbol = self.active_symbol();
+        let symbols = self.symbols_for_refresh();
+        if symbols.is_empty() {
+            return Vec::new();
+        }
+
+        for symbol in &symbols {
+            self.pending_symbols.insert(symbol.clone());
+        }
+
         self.is_loading = true;
-        self.pending_symbol = Some(symbol.clone());
-        self.status = status_loading(&symbol);
-        Some(symbol)
+        let active_symbol = self.active_symbol();
+        self.status = status_loading(&active_symbol);
+        symbols
     }
 
     pub fn schedule_options_refresh(&mut self) -> Option<String> {
@@ -220,11 +228,6 @@ impl App {
                 if symbol == self.active_symbol() {
                     self.candles = candles;
                     self.currency = currency;
-                }
-                if self.pending_symbol.as_deref() == Some(symbol.as_str()) {
-                    self.is_loading = false;
-                    self.pending_symbol = None;
-                    self.last_refresh = Instant::now();
                     let count = self
                         .cache
                         .get(&symbol)
@@ -232,6 +235,7 @@ impl App {
                         .unwrap_or(0);
                     self.status = status_updated(&symbol, count);
                 }
+                self.finish_pending_market_symbol(&symbol);
             }
             FetchResult::OptionsSuccess { symbol, options } => {
                 let current_expiration = self.current_expiration_timestamp();
@@ -280,13 +284,35 @@ impl App {
                 }
             }
             FetchResult::Error { symbol, error } => {
-                if self.pending_symbol.as_deref() == Some(symbol.as_str()) {
-                    self.is_loading = false;
-                    self.pending_symbol = None;
-                    self.last_refresh = Instant::now();
+                if symbol == self.active_symbol() {
                     self.status = status_failed(&symbol, &error);
                 }
+                self.finish_pending_market_symbol(&symbol);
             }
+        }
+    }
+
+    fn symbols_for_refresh(&self) -> Vec<String> {
+        let active_symbol = self.active_symbol();
+        let mut symbols = vec![active_symbol.clone()];
+
+        for symbol in &self.portfolio {
+            if symbol != &active_symbol {
+                symbols.push(symbol.clone());
+            }
+        }
+
+        symbols
+    }
+
+    fn finish_pending_market_symbol(&mut self, symbol: &str) {
+        if !self.pending_symbols.remove(symbol) {
+            return;
+        }
+
+        if self.pending_symbols.is_empty() {
+            self.is_loading = false;
+            self.last_refresh = Instant::now();
         }
     }
 
