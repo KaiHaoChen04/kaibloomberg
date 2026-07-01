@@ -40,7 +40,7 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
     let (result_tx, mut result_rx) = mpsc::unbounded_channel::<FetchResult>();
 
-    if let Some(symbol) = app.schedule_refresh() {
+    for symbol in app.schedule_refresh() {
         spawn_refresh(symbol, result_tx.clone());
     }
 
@@ -56,7 +56,7 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
         }
 
         if app.should_refresh() {
-            if let Some(symbol) = app.schedule_refresh() {
+            for symbol in app.schedule_refresh() {
                 spawn_refresh(symbol, result_tx.clone());
             }
         }
@@ -73,7 +73,7 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
         {
             let should_refresh = app.on_key(key);
             if should_refresh {
-                if let Some(symbol) = app.schedule_refresh() {
+                for symbol in app.schedule_refresh() {
                     spawn_refresh(symbol, result_tx.clone());
                 }
             }
