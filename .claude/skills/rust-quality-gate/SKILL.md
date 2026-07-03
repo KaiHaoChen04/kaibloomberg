@@ -21,3 +21,4 @@ description: "Run format, lint, and tests for this Rust repo and summarize failu
 ## Guardrails
 - Do not auto-fix broadly without user request.
 - Keep edits minimal and scoped to failing checks.
+- Ask user whenever unsure.
