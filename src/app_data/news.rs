@@ -1,3 +1,5 @@
+use std::error::Error;
+use rss::Channel;
 
 pub enum News {
     Tech,
@@ -17,4 +19,10 @@ impl News {
             News::Tech => "Technology",
         }
     }
+}
+
+async fn fetch_and_parse_title(source: News) -> Result<Vec<String>, Box<dyn Error>> {
+
+
+
 }
