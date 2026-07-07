@@ -18,3 +18,4 @@ Constraints:
 2. Avoid breaking current keybindings unless explicitly requested.
 3. Validate layout behavior for small terminal sizes where possible.
 4. Keep redraw paths efficient and avoid unnecessary allocations in hot loops.
+5. Avoid complicated design, keep content readable and layout simple unless asked with specifics.
