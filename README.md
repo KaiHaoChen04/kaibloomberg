@@ -17,12 +17,13 @@ A Rust terminal UI (TUI) for tracking market headers, portfolio holdings, and op
 - Main: header tabs, live chart, portfolio list, status panel.
 - Portfolio: holdings table with P/L and allocation pie chart.
 - Options: chain table by expiration and side (calls/puts).
+- News: Yahoo Finance RSS headlines with source switching and scrollable entries.
 
 ## Controls
 
 ### Global
 - `q` quit
-- `Tab` toggle between Main and Portfolio screens (Options returns to Main)
+- `Tab` toggle between Main and Portfolio screens, and return to Main from Options or News
 
 ### Main screen
 - Left/Right: switch header tabs
@@ -33,12 +34,19 @@ A Rust terminal UI (TUI) for tracking market headers, portfolio holdings, and op
 - `c` candlestick chart
 - Up/Down or `k`/`j`: move portfolio selection
 - `o` open options screen for active symbol
+- `n` open news screen
 
 ### Portfolio screen
 - `a` add a holding (ticker -> average price -> quantity)
 - `t` toggle active symbol source (header vs portfolio)
 - `o` open options screen for active symbol
 - `d` delete holding (not implemented yet)
+
+### News screen
+- Left/Right: switch news source
+- Up/Down or PageUp/PageDown: scroll headlines
+- `r` refresh news feed
+- `Tab` return to Main
 
 ### Options screen
 - `c` show calls
@@ -54,6 +62,7 @@ A Rust terminal UI (TUI) for tracking market headers, portfolio holdings, and op
 ## Data sources
 - Prices: Yahoo Finance chart endpoint
 - Options: Yahoo Finance options chain endpoint
+- News: Yahoo Finance RSS feeds
 
 If you hit rate limits or see empty data, wait a bit and try again.
 
