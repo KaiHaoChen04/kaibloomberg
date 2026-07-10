@@ -5,6 +5,7 @@ pub mod options;
 
 pub use chart::{Candle, CandleSeries, Range, fetch_candles};
 pub use holdings::Holdings;
+pub use news::{News, NewsItem, fetch_news};
 pub use options::{OptionByDateNode, OptionsContractNode, fetch_options};
 
 #[derive(Clone, Copy, Debug)]
