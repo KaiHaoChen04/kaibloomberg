@@ -1,5 +1,5 @@
-use std::error::Error;
 use rss::Channel;
+use anyhow::Result;
 
 pub enum News {
     Tech,
@@ -21,7 +21,7 @@ impl News {
     }
 }
 
-async fn fetch_and_parse_title(source: News) -> Result<Vec<String>, Box<dyn Error>> {
+async fn fetch_and_parse_title(source: News) -> Result<Vec<String>> {
     let response = reqwest::get(source.url()).await?.bytes().await?;
     let channel = Channel::read_from(&response[..])?;
 
