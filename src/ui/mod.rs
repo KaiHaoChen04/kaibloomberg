@@ -25,10 +25,12 @@ use tokio::sync::mpsc;
 use crate::{
     app::{App, ChartMode, CurrentScreen, FetchResult},
     ui::{
+        news::draw_news,
         options::draw_options_chart,
         summary::{draw_footer, draw_summary_box},
     },
 };
+mod news;
 mod options;
 mod summary;
 
@@ -67,6 +69,12 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
             }
         }
 
+        if app.news_refresh_due() {
+            if let Some(source) = app.schedule_news_refresh() {
+                spawn_news_refresh(source, result_tx.clone());
+            }
+        }
+
         if event::poll(Duration::from_millis(100))?
             && let Event::Key(key) = event::read()?
             && key.kind == KeyEventKind::Press
@@ -96,6 +104,16 @@ fn spawn_refresh(symbol: String, result_tx: mpsc::UnboundedSender<FetchResult>) 
 fn spawn_options_refresh(symbol: String, result_tx: mpsc::UnboundedSender<FetchResult>) {
     tokio::spawn(async move {
         let message = App::refresh_options(symbol).await;
+        let _ = result_tx.send(message);
+    });
+}
+
+fn spawn_news_refresh(
+    source: crate::app_data::News,
+    result_tx: mpsc::UnboundedSender<FetchResult>,
+) {
+    tokio::spawn(async move {
+        let message = App::refresh_news(source).await;
         let _ = result_tx.send(message);
     });
 }
@@ -164,6 +182,9 @@ fn draw(frame: &mut Frame, app: &mut App) {
         CurrentScreen::Options => {
             draw_options_chart(frame, app, root[1]);
         }
+        CurrentScreen::News => {
+            draw_news(frame, app, root[1]);
+        }
     }
 
     let control_box = match app.current_screen {
@@ -178,6 +199,10 @@ fn draw(frame: &mut Frame, app: &mut App) {
         CurrentScreen::Options => {
             let idle_hint =
                 "q quit | tab chart | c calls | p puts | <-/-> expiry | ^/v scroll | r refresh";
+            draw_footer(app, idle_hint)
+        }
+        CurrentScreen::News => {
+            let idle_hint = "q quit | tab main | <-/-> source | ^/v scroll | r refresh";
             draw_footer(app, idle_hint)
         }
     };
@@ -317,16 +342,11 @@ fn draw_line_chart(frame: &mut Frame, app: &App, area: Rect) {
                 .bounds([0.0, points.len() as f64])
                 .labels(vec![TextLine::from(open_time), TextLine::from("Now")]),
         )
-        .y_axis(
-            Axis::default()
-                .title("")
-                .bounds([min_y, max_y])
-                .labels([
-                    TextLine::from(format!("{min_y:.2}")),
-                    TextLine::from(format!("{mid_y:.2}")),
-                    TextLine::from(format!("{max_y:.2}")),
-                ]),
-        );
+        .y_axis(Axis::default().title("").bounds([min_y, max_y]).labels([
+            TextLine::from(format!("{min_y:.2}")),
+            TextLine::from(format!("{mid_y:.2}")),
+            TextLine::from(format!("{max_y:.2}")),
+        ]));
 
     frame.render_widget(chart, area);
 }
