@@ -137,6 +137,9 @@ pub fn draw_footer<'a>(app: &App, idle_hint: &'a str) -> Paragraph<'a> {
             CurrentScreen::Options => {
                 format!("")
             }
+            CurrentScreen::News => {
+                format!("")
+            }
         }
     }
     else {

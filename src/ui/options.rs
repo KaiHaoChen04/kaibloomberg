@@ -38,14 +38,22 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
 
     frame.render_widget(header, layout[0]);
 
-    let header_col = Row::new(
-        vec!["Last Trade Date", "Strike", "Last Price", "Bid", "Ask", "Volume", "Open Interest", "Implied Volatility"])
-        .style(
-            Style::default()
-                .fg(Color::LightYellow)
-                .add_modifier(Modifier::BOLD)
-        )
-        .bottom_margin(1);
+    let header_col = Row::new(vec![
+        "Last Trade Date",
+        "Strike",
+        "Last Price",
+        "Bid",
+        "Ask",
+        "Volume",
+        "Open Interest",
+        "Implied Volatility",
+    ])
+    .style(
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD),
+    )
+    .bottom_margin(1);
 
     let contracts = app
         .options
@@ -66,9 +74,7 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
 
     let rows = build_option_rows(contracts, app.options_scroll, app.options_page_size);
 
-    let widths = [
-        Constraint::Percentage(12); 8
-    ];
+    let widths = [Constraint::Percentage(12); 8];
 
     let table = Table::new(rows, widths)
         .header(header_col)
@@ -78,7 +84,11 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
     frame.render_widget(table, layout[1]);
 }
 
-fn build_option_rows(contracts: Option<&[OptionsContractNode]>, scroll: usize, page_size: usize,) -> Vec<Row<'static>> {
+fn build_option_rows(
+    contracts: Option<&[OptionsContractNode]>,
+    scroll: usize,
+    page_size: usize,
+) -> Vec<Row<'static>> {
     let mut rows = Vec::new();
 
     if let Some(items) = contracts {
