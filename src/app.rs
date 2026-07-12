@@ -6,8 +6,8 @@ use std::{
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app_data::{
-    Candle, CandleSeries, Headers, Holdings, OptionByDateNode, OptionsContractNode, Range,
-    fetch_candles, fetch_options,
+    Candle, CandleSeries, Headers, Holdings, News, NewsItem, OptionByDateNode, OptionsContractNode,
+    Range, fetch_candles, fetch_news, fetch_options,
 };
 use crate::utils::{sanitize_symbol, status_cached, status_failed, status_loading, status_updated};
 
@@ -28,6 +28,7 @@ pub enum CurrentScreen {
     Main,
     Portfolio,
     Options,
+    News,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,6 +54,14 @@ pub enum FetchResult {
     },
     OptionsError {
         symbol: String,
+        error: String,
+    },
+    NewsSuccess {
+        source: News,
+        items: Vec<NewsItem>,
+    },
+    NewsError {
+        source: News,
         error: String,
     },
 }
@@ -85,6 +94,16 @@ pub struct App {
     pub options_last_refresh: Instant,
     pub options_refresh_interval: Duration,
     pub options_force_refresh: bool,
+    pub news_source: News,
+    pub news_items: Vec<NewsItem>,
+    pub news_status: String,
+    pub news_is_loading: bool,
+    pub news_pending_source: Option<News>,
+    pub news_last_refresh: Instant,
+    pub news_refresh_interval: Duration,
+    pub news_force_refresh: bool,
+    pub news_scroll: usize,
+    pub news_page_size: usize,
     pub status: String,
     pub is_loading: bool,
     pub pending_symbols: HashSet<String>,
@@ -124,6 +143,16 @@ impl App {
             options_last_refresh: Instant::now() - Duration::from_secs(60),
             options_refresh_interval: Duration::from_secs(30),
             options_force_refresh: false,
+            news_source: News::Finance,
+            news_items: Vec::new(),
+            news_status: "Loading news...".to_string(),
+            news_is_loading: false,
+            news_pending_source: None,
+            news_last_refresh: Instant::now() - Duration::from_secs(300),
+            news_refresh_interval: Duration::from_secs(300),
+            news_force_refresh: false,
+            news_scroll: 0,
+            news_page_size: 10,
             status: "Loading market data...".to_string(),
             is_loading: false,
             pending_symbols: HashSet::new(),
@@ -178,6 +207,12 @@ impl App {
                 || self.options_last_refresh.elapsed() >= self.options_refresh_interval)
     }
 
+    pub fn news_refresh_due(&self) -> bool {
+        self.current_screen == CurrentScreen::News
+            && (self.news_force_refresh
+                || self.news_last_refresh.elapsed() >= self.news_refresh_interval)
+    }
+
     pub fn schedule_refresh(&mut self) -> Vec<String> {
         if self.is_loading {
             return Vec::new();
@@ -209,6 +244,19 @@ impl App {
         self.options_force_refresh = false;
         self.options_status = format!("Loading options for {}...", symbol);
         Some(symbol)
+    }
+
+    pub fn schedule_news_refresh(&mut self) -> Option<News> {
+        if self.news_is_loading {
+            return None;
+        }
+
+        let source = self.news_source;
+        self.news_is_loading = true;
+        self.news_pending_source = Some(source);
+        self.news_force_refresh = false;
+        self.news_status = format!("Loading {} news...", source.label());
+        Some(source)
     }
 
     pub fn on_fetch_result(&mut self, message: FetchResult) {
@@ -283,6 +331,29 @@ impl App {
                         format!("Failed to load options for {}: {}", symbol, error);
                 }
             }
+            FetchResult::NewsSuccess { source, items } => {
+                self.news_items = items;
+                if self.news_pending_source == Some(source) {
+                    self.news_is_loading = false;
+                    self.news_pending_source = None;
+                    self.news_last_refresh = Instant::now();
+                    self.news_scroll = 0;
+                    self.news_status = format!(
+                        "News updated for {} ({} items)",
+                        source.label(),
+                        self.news_items.len()
+                    );
+                }
+            }
+            FetchResult::NewsError { source, error } => {
+                if self.news_pending_source == Some(source) {
+                    self.news_is_loading = false;
+                    self.news_pending_source = None;
+                    self.news_last_refresh = Instant::now();
+                    self.news_status =
+                        format!("Failed to load news for {}: {}", source.label(), error);
+                }
+            }
             FetchResult::Error { symbol, error } => {
                 if symbol == self.active_symbol() {
                     self.status = status_failed(&symbol, &error);
@@ -335,6 +406,18 @@ impl App {
                 Ok(options) => FetchResult::OptionsSuccess { symbol, options },
                 Err(error) => FetchResult::OptionsError {
                     symbol,
+                    error: error.to_string(),
+                },
+            }
+        }
+    }
+
+    pub fn refresh_news(source: News) -> impl std::future::Future<Output = FetchResult> {
+        async move {
+            match fetch_news(source).await {
+                Ok(items) => FetchResult::NewsSuccess { source, items },
+                Err(error) => FetchResult::NewsError {
+                    source,
                     error: error.to_string(),
                 },
             }
@@ -414,11 +497,16 @@ impl App {
                     self.current_screen = CurrentScreen::Main;
                     true
                 }
+                CurrentScreen::News => {
+                    self.current_screen = CurrentScreen::Main;
+                    true
+                }
             },
             _ => match self.current_screen {
                 CurrentScreen::Main => self.handle_main_key(key),
                 CurrentScreen::Portfolio => self.handle_portfolio_key(key),
                 CurrentScreen::Options => self.handle_options_key(key),
+                CurrentScreen::News => self.handle_news_key(key),
             },
         }
     }
@@ -459,6 +547,12 @@ impl App {
                 self.current_screen = CurrentScreen::Options;
                 self.show_options_cached_or_loading();
                 self.request_options_refresh();
+                false
+            }
+            KeyCode::Char('n') => {
+                self.current_screen = CurrentScreen::News;
+                self.show_news_cached_or_loading();
+                self.request_news_refresh();
                 false
             }
             KeyCode::Char('d') => {
@@ -771,6 +865,9 @@ impl App {
             CurrentScreen::Options => match key.code {
                 _ => false,
             },
+            CurrentScreen::News => match key.code {
+                _ => false,
+            },
         }
     }
 
@@ -796,5 +893,77 @@ impl App {
             .map(|contracts| contracts.len())
             .unwrap_or(0);
         len.saturating_sub(page)
+    }
+
+    fn show_news_cached_or_loading(&mut self) {
+        self.news_scroll = 0;
+        self.news_status = format!("Loading {} news...", self.news_source.label());
+    }
+
+    pub fn request_news_refresh(&mut self) {
+        self.news_force_refresh = true;
+    }
+
+    fn handle_news_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Left => {
+                let sources = News::all();
+                let index = sources
+                    .iter()
+                    .position(|source| *source == self.news_source)
+                    .unwrap_or(0);
+                self.news_source = if index == 0 {
+                    sources[sources.len() - 1]
+                }
+                else {
+                    sources[index - 1]
+                };
+                self.show_news_cached_or_loading();
+                self.request_news_refresh();
+                true
+            }
+            KeyCode::Right => {
+                let sources = News::all();
+                let index = sources
+                    .iter()
+                    .position(|source| *source == self.news_source)
+                    .unwrap_or(0);
+                self.news_source = sources[(index + 1) % sources.len()];
+                self.show_news_cached_or_loading();
+                self.request_news_refresh();
+                true
+            }
+            KeyCode::Up => {
+                self.news_scroll = self.news_scroll.saturating_sub(1);
+                false
+            }
+            KeyCode::Down => {
+                self.news_scroll = self
+                    .news_scroll
+                    .saturating_add(1)
+                    .min(self.news_scroll_max());
+                false
+            }
+            KeyCode::PageUp => {
+                let page = self.news_page_size.max(1);
+                self.news_scroll = self.news_scroll.saturating_sub(page);
+                false
+            }
+            KeyCode::PageDown => {
+                let page = self.news_page_size.max(1);
+                self.news_scroll = (self.news_scroll + page).min(self.news_scroll_max());
+                false
+            }
+            KeyCode::Char('r') => {
+                self.request_news_refresh();
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn news_scroll_max(&self) -> usize {
+        let page = self.news_page_size.max(1);
+        self.news_items.len().saturating_sub(page)
     }
 }
