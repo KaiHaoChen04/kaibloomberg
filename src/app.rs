@@ -65,6 +65,50 @@ pub enum FetchResult {
         error: String,
     },
 }
+struct FetchState<T> {
+    status: String,
+    is_loading: bool,
+    pending: Option<T>,
+    last_refresh: Instant,
+    refresh_interval: Duration,
+    force_refresh: bool,
+}
+
+impl<T: Clone + PartialEq> FetchState<T> {
+    fn new(initial_status: impl Into<String>, refresh_interval: Duration) -> Self {
+        Self {
+            status: initial_status.into(),
+            is_loading: false,
+            pending: None,
+            last_refresh: Instant::now() - refresh_interval,
+            refresh_interval,
+            force_refresh: false,
+        }
+    }
+    fn due(&self, screen: bool) -> bool {
+        screen && (self.force_refresh || self.last_refresh.elapsed() >= self.refresh_interval)
+    }
+    fn schedule(&mut self, key: T) -> Option<T> {
+        if self.is_loading {
+            return None;
+        }
+        self.is_loading = true;
+        self.pending = Some(key.clone());
+        self.force_refresh = false;
+        Some(key)
+    }
+    fn complete(&mut self, key: &T) -> bool {
+        if self.pending.as_ref() == Some(key) {
+            self.is_loading = false;
+            self.last_refresh = Instant::now();
+            self.pending = None;
+            true
+        }
+        else {
+            false
+        }
+    }
+}
 
 pub struct App {
     pub selected_header: usize,
