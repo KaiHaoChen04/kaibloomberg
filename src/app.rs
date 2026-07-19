@@ -65,7 +65,8 @@ pub enum FetchResult {
         error: String,
     },
 }
-struct FetchState<T> {
+struct FetchState<K, T> {
+    items: Vec<K>,
     status: String,
     is_loading: bool,
     pending: Option<T>,
@@ -74,9 +75,10 @@ struct FetchState<T> {
     force_refresh: bool,
 }
 
-impl<T: Clone + PartialEq> FetchState<T> {
+impl<T: Clone + PartialEq, K> FetchState<K, T> {
     fn new(initial_status: impl Into<String>, refresh_interval: Duration) -> Self {
         Self {
+            items: Vec::new(),
             status: initial_status.into(),
             is_loading: false,
             pending: None,
