@@ -63,14 +63,14 @@ pub async fn run_ui(app: &mut App) -> Result<(), Box<dyn Error>> {
             }
         }
 
-        if app.options_refresh_due() {
-            if let Some(symbol) = app.schedule_options_refresh() {
+        if app.options.due(app.current_screen == CurrentScreen::Options) {
+            if let Some(symbol) = app.options.schedule(app.active_symbol()) {
                 spawn_options_refresh(symbol, result_tx.clone());
             }
         }
 
-        if app.news_refresh_due() {
-            if let Some(source) = app.schedule_news_refresh() {
+        if app.news.due(app.current_screen == CurrentScreen::News) {
+            if let Some(source) = app.news.schedule(app.news_source) {
                 spawn_news_refresh(source, result_tx.clone());
             }
         }
