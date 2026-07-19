@@ -65,18 +65,18 @@ pub enum FetchResult {
         error: String,
     },
 }
-struct FetchState<K, T> {
-    items: Vec<K>,
-    status: String,
-    is_loading: bool,
-    pending: Option<T>,
-    last_refresh: Instant,
-    refresh_interval: Duration,
-    force_refresh: bool,
+pub struct FetchState<T, K> {
+    pub items: Vec<K>,
+    pub status: String,
+    pub is_loading: bool,
+    pub pending: Option<T>,
+    pub last_refresh: Instant,
+    pub refresh_interval: Duration,
+    pub force_refresh: bool,
 }
 
-impl<T: Clone + PartialEq, K> FetchState<K, T> {
-    fn new(initial_status: impl Into<String>, refresh_interval: Duration) -> Self {
+impl<K, T: Clone + PartialEq> FetchState<T, K> {
+    pub fn new(initial_status: impl Into<String>, refresh_interval: Duration) -> Self {
         Self {
             items: Vec::new(),
             status: initial_status.into(),
@@ -87,10 +87,10 @@ impl<T: Clone + PartialEq, K> FetchState<K, T> {
             force_refresh: false,
         }
     }
-    fn due(&self, screen: bool) -> bool {
+    pub fn due(&self, screen: bool) -> bool {
         screen && (self.force_refresh || self.last_refresh.elapsed() >= self.refresh_interval)
     }
-    fn schedule(&mut self, key: T) -> Option<T> {
+    pub fn schedule(&mut self, key: T) -> Option<T> {
         if self.is_loading {
             return None;
         }
@@ -99,7 +99,7 @@ impl<T: Clone + PartialEq, K> FetchState<K, T> {
         self.force_refresh = false;
         Some(key)
     }
-    fn complete(&mut self, key: &T) -> bool {
+    pub fn complete(&mut self, key: &T) -> bool {
         if self.pending.as_ref() == Some(key) {
             self.is_loading = false;
             self.last_refresh = Instant::now();
@@ -128,28 +128,16 @@ pub struct App {
     pub candles: Vec<Candle>,
     pub currency: String,
     pub cache: HashMap<String, CandleSeries>,
-    pub options: Vec<OptionByDateNode>,
+    pub options: FetchState<String, OptionByDateNode>,
     pub options_cache: HashMap<String, Vec<OptionByDateNode>>,
     pub options_side: OptionsSide,
     pub options_selected_expiration: usize,
     pub options_scroll: usize,
     pub options_page_size: usize,
-    pub options_status: String,
-    pub options_is_loading: bool,
-    pub options_pending_symbol: Option<String>,
-    pub options_last_refresh: Instant,
-    pub options_refresh_interval: Duration,
-    pub options_force_refresh: bool,
-    pub news_source: News,
-    pub news_items: Vec<NewsItem>,
-    pub news_status: String,
-    pub news_is_loading: bool,
-    pub news_pending_source: Option<News>,
-    pub news_last_refresh: Instant,
-    pub news_refresh_interval: Duration,
-    pub news_force_refresh: bool,
+    pub news: FetchState<News, NewsItem>,
     pub news_scroll: usize,
     pub news_page_size: usize,
+    pub news_source: News,
     pub status: String,
     pub is_loading: bool,
     pub pending_symbols: HashSet<String>,
@@ -177,28 +165,16 @@ impl App {
             candles: Vec::new(),
             currency: "-".to_string(),
             cache: HashMap::new(),
-            options: Vec::new(),
+            options: FetchState::new("Loading options chain...", Duration::from_secs(30)),
             options_cache: HashMap::new(),
             options_side: OptionsSide::Calls,
             options_selected_expiration: 0,
             options_scroll: 0,
             options_page_size: 10,
-            options_status: "Loading options chain...".to_string(),
-            options_is_loading: false,
-            options_pending_symbol: None,
-            options_last_refresh: Instant::now() - Duration::from_secs(60),
-            options_refresh_interval: Duration::from_secs(30),
-            options_force_refresh: false,
-            news_source: News::Finance,
-            news_items: Vec::new(),
-            news_status: "Loading news...".to_string(),
-            news_is_loading: false,
-            news_pending_source: None,
-            news_last_refresh: Instant::now() - Duration::from_secs(300),
-            news_refresh_interval: Duration::from_secs(300),
-            news_force_refresh: false,
+            news: FetchState::new("Loading news", Duration::from_secs(300)),
             news_scroll: 0,
             news_page_size: 10,
+            news_source: News::Finance,
             status: "Loading market data...".to_string(),
             is_loading: false,
             pending_symbols: HashSet::new(),
@@ -247,18 +223,6 @@ impl App {
         self.last_refresh.elapsed() >= self.refresh_interval
     }
 
-    pub fn options_refresh_due(&self) -> bool {
-        self.current_screen == CurrentScreen::Options
-            && (self.options_force_refresh
-                || self.options_last_refresh.elapsed() >= self.options_refresh_interval)
-    }
-
-    pub fn news_refresh_due(&self) -> bool {
-        self.current_screen == CurrentScreen::News
-            && (self.news_force_refresh
-                || self.news_last_refresh.elapsed() >= self.news_refresh_interval)
-    }
-
     pub fn schedule_refresh(&mut self) -> Vec<String> {
         if self.is_loading {
             return Vec::new();
@@ -277,32 +241,6 @@ impl App {
         let active_symbol = self.active_symbol();
         self.status = status_loading(&active_symbol);
         symbols
-    }
-
-    pub fn schedule_options_refresh(&mut self) -> Option<String> {
-        if self.options_is_loading {
-            return None;
-        }
-
-        let symbol = self.active_symbol();
-        self.options_is_loading = true;
-        self.options_pending_symbol = Some(symbol.clone());
-        self.options_force_refresh = false;
-        self.options_status = format!("Loading options for {}...", symbol);
-        Some(symbol)
-    }
-
-    pub fn schedule_news_refresh(&mut self) -> Option<News> {
-        if self.news_is_loading {
-            return None;
-        }
-
-        let source = self.news_source;
-        self.news_is_loading = true;
-        self.news_pending_source = Some(source);
-        self.news_force_refresh = false;
-        self.news_status = format!("Loading {} news...", source.label());
-        Some(source)
     }
 
     pub fn on_fetch_result(&mut self, message: FetchResult) {
@@ -335,25 +273,26 @@ impl App {
                 let current_expiration = self.current_expiration_timestamp();
                 self.options_cache.insert(symbol.clone(), options.clone());
                 if symbol == self.active_symbol() {
-                    self.options = options;
+                    self.options.items = options;
                     self.options_scroll = 0;
                 }
-                if self.options_pending_symbol.as_deref() == Some(symbol.as_str()) {
-                    self.options_is_loading = false;
-                    self.options_pending_symbol = None;
-                    self.options_last_refresh = Instant::now();
-                    let count = self.options.len();
+                if self.options.pending.as_deref() == Some(symbol.as_str()) {
+                    self.options.is_loading = false;
+                    self.options.pending = None;
+                    self.options.last_refresh = Instant::now();
+                    let count = self.options.items.len();
                     if count == 0 {
-                        self.options_status = format!("No options available for {}", symbol);
+                        self.options.status = format!("No options available for {}", symbol);
                     }
                     else {
-                        self.options_status =
+                        self.options.status =
                             format!("Options updated for {} ({} expirations)", symbol, count);
                     }
 
                     if let Some(expiration) = current_expiration {
                         if let Some(index) = self
                             .options
+                            .items
                             .iter()
                             .position(|item| item.expiration_date == Some(expiration))
                         {
@@ -369,34 +308,34 @@ impl App {
                 }
             }
             FetchResult::OptionsError { symbol, error } => {
-                if self.options_pending_symbol.as_deref() == Some(symbol.as_str()) {
-                    self.options_is_loading = false;
-                    self.options_pending_symbol = None;
-                    self.options_last_refresh = Instant::now();
-                    self.options_status =
+                if self.options.pending.as_deref() == Some(symbol.as_str()) {
+                    self.options.is_loading = false;
+                    self.options.pending = None;
+                    self.options.last_refresh = Instant::now();
+                    self.options.status =
                         format!("Failed to load options for {}: {}", symbol, error);
                 }
             }
             FetchResult::NewsSuccess { source, items } => {
-                self.news_items = items;
-                if self.news_pending_source == Some(source) {
-                    self.news_is_loading = false;
-                    self.news_pending_source = None;
-                    self.news_last_refresh = Instant::now();
+                self.news.items = items;
+                if self.news.pending == Some(source) {
+                    self.news.is_loading = false;
+                    self.news.pending = None;
+                    self.news.last_refresh = Instant::now();
                     self.news_scroll = 0;
-                    self.news_status = format!(
+                    self.news.status = format!(
                         "News updated for {} ({} items)",
                         source.label(),
-                        self.news_items.len()
+                        self.news.items.len()
                     );
                 }
             }
             FetchResult::NewsError { source, error } => {
-                if self.news_pending_source == Some(source) {
-                    self.news_is_loading = false;
-                    self.news_pending_source = None;
-                    self.news_last_refresh = Instant::now();
-                    self.news_status =
+                if self.news.pending == Some(source) {
+                    self.news.is_loading = false;
+                    self.news.pending = None;
+                    self.news.last_refresh = Instant::now();
+                    self.news.status =
                         format!("Failed to load news for {}: {}", source.label(), error);
                 }
             }
@@ -486,23 +425,23 @@ impl App {
     fn show_options_cached_or_loading(&mut self) {
         let symbol = self.active_symbol();
         if let Some(cached) = self.options_cache.get(&symbol) {
-            self.options = cached.clone();
-            self.options_status = format!(
+            self.options.items = cached.clone();
+            self.options.status = format!(
                 "Showing cached options for {} ({} expirations)",
                 symbol,
-                self.options.len()
+                self.options.items.len()
             );
         }
         else {
-            self.options.clear();
-            self.options_status = format!("Loading options for {}...", symbol);
+            self.options.items.clear();
+            self.options.status = format!("Loading options for {}...", symbol);
         }
         self.options_selected_expiration = 0;
         self.options_scroll = 0;
     }
 
     pub fn request_options_refresh(&mut self) {
-        self.options_force_refresh = true;
+        self.options.force_refresh = true;
     }
 
     pub fn reset_portfolio_input(&mut self) {
@@ -714,20 +653,20 @@ impl App {
         match key.code {
             KeyCode::Char('c') => {
                 self.options_side = OptionsSide::Calls;
-                self.options_status = "Showing calls".to_string();
+                self.options.status = "Showing calls".to_string();
                 self.options_scroll = 0;
                 false
             }
             KeyCode::Char('p') => {
                 self.options_side = OptionsSide::Puts;
-                self.options_status = "Showing puts".to_string();
+                self.options.status = "Showing puts".to_string();
                 self.options_scroll = 0;
                 false
             }
             KeyCode::Left => {
-                if !self.options.is_empty() {
+                if !self.options.items.is_empty() {
                     if self.options_selected_expiration == 0 {
-                        self.options_selected_expiration = self.options.len() - 1;
+                        self.options_selected_expiration = self.options.items.len() - 1;
                     }
                     else {
                         self.options_selected_expiration -= 1;
@@ -737,9 +676,9 @@ impl App {
                 false
             }
             KeyCode::Right => {
-                if !self.options.is_empty() {
+                if !self.options.items.is_empty() {
                     self.options_selected_expiration =
-                        (self.options_selected_expiration + 1) % self.options.len();
+                        (self.options_selected_expiration + 1) % self.options.items.len();
                     self.options_scroll = 0;
                 }
                 false
@@ -919,12 +858,14 @@ impl App {
 
     pub fn current_expiration_timestamp(&self) -> Option<i64> {
         self.options
+            .items
             .get(self.options_selected_expiration)
             .and_then(|item| item.expiration_date)
     }
 
     fn current_options_contracts(&self) -> Option<&Vec<OptionsContractNode>> {
         self.options
+            .items
             .get(self.options_selected_expiration)
             .and_then(|chain| match self.options_side {
                 OptionsSide::Calls => chain.calls.as_ref(),
@@ -943,11 +884,11 @@ impl App {
 
     fn show_news_cached_or_loading(&mut self) {
         self.news_scroll = 0;
-        self.news_status = format!("Loading {} news...", self.news_source.label());
+        self.news.status = format!("Loading {:?} news...", self.news_source);
     }
 
     pub fn request_news_refresh(&mut self) {
-        self.news_force_refresh = true;
+        self.news.force_refresh = true;
     }
 
     fn handle_news_key(&mut self, key: KeyEvent) -> bool {
@@ -1010,6 +951,6 @@ impl App {
 
     fn news_scroll_max(&self) -> usize {
         let page = self.news_page_size.max(1);
-        self.news_items.len().saturating_sub(page)
+        self.news.items.len().saturating_sub(page)
     }
 }
