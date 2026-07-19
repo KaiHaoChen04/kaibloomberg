@@ -32,7 +32,7 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
         app.active_label(),
         expiration_label,
         side_label,
-        app.options_status
+        app.options.status
     ))
     .block(Block::default().title(" Options ").borders(Borders::ALL));
 
@@ -57,6 +57,7 @@ pub fn draw_options_chart(frame: &mut Frame, app: &mut App, area: Rect) {
 
     let contracts = app
         .options
+        .items
         .get(app.options_selected_expiration)
         .and_then(|chain| match app.options_side {
             OptionsSide::Calls => chain.calls.as_deref(),
