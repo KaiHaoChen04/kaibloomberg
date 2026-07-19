@@ -43,7 +43,7 @@ pub fn draw_news(frame: &mut Frame, app: &mut App, area: Rect) {
         Span::styled("News: ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(app.news_source.label()),
         Span::raw(" | "),
-        Span::raw(app.news_status.clone()),
+        Span::raw(app.news.status.clone()),
     ]))
     .block(Block::default().title(" News ").borders(Borders::ALL))
     .wrap(Wrap { trim: true });
@@ -58,17 +58,14 @@ pub fn draw_news(frame: &mut Frame, app: &mut App, area: Rect) {
 
     let max_rows = layout[1].height.saturating_sub(2) as usize;
     app.news_page_size = max_rows.max(1);
-    let max_scroll = app
-        .news_items
-        .len()
-        .saturating_sub(app.news_page_size.max(1));
+    let max_scroll = app.news.items.len().saturating_sub(app.news_page_size.max(1));
     if app.news_scroll > max_scroll {
         app.news_scroll = max_scroll;
     }
 
     let items = build_news_items(app, app.news_scroll, app.news_page_size);
     let mut state = ListState::default();
-    if !items.is_empty() && !app.news_items.is_empty() {
+    if !items.is_empty() && !app.news.items.is_empty() {
         state.select(Some(0));
     }
 
@@ -83,7 +80,7 @@ pub fn draw_news(frame: &mut Frame, app: &mut App, area: Rect) {
 
     frame.render_stateful_widget(list, layout[1], &mut state);
 
-    if app.current_screen == CurrentScreen::News && app.news_items.is_empty() {
+    if app.current_screen == CurrentScreen::News && app.news.items.is_empty() {
         let empty = Paragraph::new("No news items available yet")
             .block(Block::default().borders(Borders::ALL))
             .wrap(Wrap { trim: true });
@@ -92,11 +89,11 @@ pub fn draw_news(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn build_news_items(app: &App, scroll: usize, page_size: usize) -> Vec<ListItem<'static>> {
-    let start = scroll.min(app.news_items.len());
-    let end = (start + page_size.max(1)).min(app.news_items.len());
+    let start = scroll.min(app.news.items.len());
+    let end = (start + page_size.max(1)).min(app.news.items.len());
 
     let mut rows = Vec::new();
-    for item in &app.news_items[start..end] {
+    for item in &app.news.items[start..end] {
         let mut lines = Vec::new();
         lines.push(Line::from(Span::styled(
             item.title.clone(),
