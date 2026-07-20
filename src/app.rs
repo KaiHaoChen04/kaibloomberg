@@ -99,17 +99,6 @@ impl<K, T: Clone + PartialEq> FetchState<T, K> {
         self.force_refresh = false;
         Some(key)
     }
-    pub fn complete(&mut self, key: &T) -> bool {
-        if self.pending.as_ref() == Some(key) {
-            self.is_loading = false;
-            self.last_refresh = Instant::now();
-            self.pending = None;
-            true
-        }
-        else {
-            false
-        }
-    }
 }
 
 pub struct App {
