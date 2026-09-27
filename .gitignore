@@ -28,5 +28,8 @@ target
 #macos 
 .DS_Store
 
+#vim stuff
+*.swp
+
 # Claude local overrides (contains machine-specific settings/secrets)
 .claude/settings.local.json
