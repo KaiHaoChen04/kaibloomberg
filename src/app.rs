@@ -408,6 +408,7 @@ impl App {
         else {
             self.currency = "-".to_string();
             self.status = status_loading(&symbol);
+            self.candles.clear();
         }
     }
 
